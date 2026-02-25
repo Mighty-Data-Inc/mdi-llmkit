@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mdi-llmkit"
+version = "0.1.0"
+description = "Utilities for managing multi-shot conversations and structured data handling in LLM applications"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "openai>=1.0.0",
+]
+authors = [{ name = "Mikhail Voloshin" }]
+license = { file = "LICENSE" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openai_utils"]
