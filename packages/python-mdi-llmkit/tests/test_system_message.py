@@ -23,8 +23,8 @@ class FunctionsTests(unittest.TestCase):
         # Allow a one-second rollover because the function call may happen
         # just after crossing a second boundary from when current_dt is captured.
         expected_content_options = {
-            f"DATETIME: The current date and time is {current_dt.strftime('%Y-%m-%d %H:%M:%S')}",
-            f"DATETIME: The current date and time is {(current_dt + datetime.timedelta(seconds=1)).strftime('%Y-%m-%d %H:%M:%S')}",
+            f"!DATETIME: The current date and time is {current_dt.strftime('%Y-%m-%d %H:%M:%S')}",
+            f"!DATETIME: The current date and time is {(current_dt + datetime.timedelta(seconds=1)).strftime('%Y-%m-%d %H:%M:%S')}",
         }
         self.assertIn(result["content"], expected_content_options)
 
