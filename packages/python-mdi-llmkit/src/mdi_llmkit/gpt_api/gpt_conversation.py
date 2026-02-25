@@ -1,20 +1,25 @@
-import datetime
+"""Conversation-oriented helpers built on top of ``gpt_submit``.
+
+This module provides the ``GptConversation`` container for building and
+submitting role-based chat histories while preserving convenience state such as
+the last reply.
+
+It centralizes common conversation workflows, including:
+- message append helpers by role,
+- cloning and assignment utilities,
+- submit wrappers for different roles, and
+- typed accessors for last-reply inspection.
+"""
+
 import json
-import openai
-import time
 
-from typing import Any, cast, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from openai._types import Omit, omit
-from openai.types.responses import ResponseTextConfigParam
-
-GPT_MODEL_CHEAP = "gpt-4.1-nano"
-GPT_MODEL_SMART = "gpt-4.1"
-
-GPT_RETRY_LIMIT = 5
-GPT_RETRY_BACKOFF_TIME_SECONDS = 30  # seconds
-
-SYSTEM_ANNOUNCEMENT_MESSAGE: str = ""
+from .functions import (
+    OpenAIClientLike,
+    GPT_MODEL_SMART,
+    gpt_submit,
+)
 
 
 class GptConversation(list):
@@ -24,7 +29,7 @@ class GptConversation(list):
         self,
         messages=None,
         *,
-        openai_client: Optional[openai.OpenAI] = None,
+        openai_client: Optional[OpenAIClientLike] = None,
         model: Optional[str] = None,
     ):
         """Initialize conversation with optional list of messages."""

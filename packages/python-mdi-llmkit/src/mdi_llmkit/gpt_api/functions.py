@@ -1,3 +1,16 @@
+"""Core GPT API helpers for message submission and response parsing.
+
+This module centralizes OpenAI request/response handling used by the package,
+including:
+- model defaults,
+- datetime/system message injection,
+- optional JSON-response configuration,
+- retry behavior for recoverable failures, and
+- optional warning emission via callback.
+
+The primary entry point is ``gpt_submit``.
+"""
+
 import datetime
 import json
 import openai
@@ -17,7 +30,7 @@ _GPT_RETRY_BACKOFF_TIME_SECONDS_DEFAULT = 30  # seconds
 
 
 class _ResponsesAPI(Protocol):
-    def create(self, **kwargs: Any) -> Any: ...
+    create: Callable[..., Any]
 
 
 class OpenAIClientLike(Protocol):
@@ -56,6 +69,40 @@ def gpt_submit(
     retry_backoff_time_seconds: Optional[int] = None,
     warning_callback: Optional[Callable[[str], None]] = None,
 ) -> Union[str, dict, list]:
+    """Submit messages to an OpenAI Responses client with retry handling.
+
+    The function prepends a fresh ``!DATETIME`` system message on every call,
+    optionally prepends a caller-provided system announcement, and then submits
+    the request through ``openai_client.responses.create``.
+
+    Args:
+        messages: Message objects in OpenAI-style chat format.
+        openai_client: Client-like object exposing ``responses.create``.
+        model: Model name override. Defaults to ``GPT_MODEL_SMART``.
+        json_response: JSON mode selector.
+            - ``True``: requests ``{"format": {"type": "json_object"}}``.
+            - ``dict``: uses the provided text format config (deep-copied).
+            - ``str``: parsed as JSON and used as text format config.
+            - ``None``/``False``: plain text mode.
+        system_announcement_message: Optional additional system message placed
+            before the auto-generated datetime system message.
+        retry_limit: Maximum number of attempts for retryable failures.
+        retry_backoff_time_seconds: Delay between retries for OpenAI API errors.
+        warning_callback: Optional callback for recoverable warning strings
+            (non-fatal API warnings and retry notices).
+
+    Returns:
+        In text mode, returns a stripped ``str``.
+        In JSON mode, returns the first JSON value parsed from the model output,
+        typically a ``dict`` or ``list``.
+
+    Raises:
+        openai.OpenAIError: When API errors persist through all retries.
+        json.JSONDecodeError: When JSON parsing fails through all retries in
+            JSON mode, or when ``json_response`` is an invalid JSON string.
+        ValueError: If no attempt runs or no terminal failure is captured.
+        AttributeError: If the response object is missing expected attributes.
+    """
     if not model:
         model = GPT_MODEL_SMART
 
