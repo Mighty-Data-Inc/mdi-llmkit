@@ -3,7 +3,7 @@ import json
 import openai
 import time
 
-from typing import Any, cast, Dict, List, Optional, Tuple, Union
+from typing import Any, Protocol, cast, Dict, List, Optional, Tuple, Union
 
 from openai._types import Omit, omit
 from openai.types.responses import EasyInputMessage, ResponseTextConfigParam
@@ -14,6 +14,15 @@ GPT_MODEL_SMART = "gpt-4.1"
 
 _GPT_RETRY_LIMIT_DEFAULT = 5
 _GPT_RETRY_BACKOFF_TIME_SECONDS_DEFAULT = 30  # seconds
+
+
+class _ResponsesAPI(Protocol):
+    def create(self, **kwargs: Any) -> Any: ...
+
+
+class OpenAIClientLike(Protocol):
+    @property
+    def responses(self) -> _ResponsesAPI: ...
 
 
 def current_datetime_system_message() -> Dict[str, str]:
@@ -38,7 +47,7 @@ def current_datetime_system_message() -> Dict[str, str]:
 
 def gpt_submit(
     messages: list,
-    openai_client: openai.OpenAI,
+    openai_client: OpenAIClientLike,
     *,
     model: Optional[str] = None,
     json_response: Optional[Union[bool, dict, str]] = None,
@@ -72,13 +81,16 @@ def gpt_submit(
             ):
                 # Append instructions to the description to ensure JSON output.
                 format_dict = openai_text_param["format"]
-                if isinstance(format_dict, dict) and "description" in format_dict:
+                if isinstance(format_dict, dict):
+                    format_dict["description"] = format_dict.get("description", "")
                     format_dict["description"] += (
                         "\n\nABSOLUTELY NO UNICODE ALLOWED. Only use typeable keyboard characters. "
                         "Do not try to circumvent this rule with escape sequences, "
                         'backslashes, or other tricks. Use double dashes (--), straight quotes ("), '
                         "and single quotes (') instead of em-dashes, en-dashes, and curly versions."
                     )
+                    format_dict["description"] = format_dict["description"].strip()
+
         elif isinstance(json_response, str):
             openai_text_param = json.loads(json_response)
 
@@ -90,7 +102,7 @@ def gpt_submit(
             type(m) is dict
             and m.get("role") == "system"
             and type(m.get("content")) is str
-            and m.get("content", "").startswith("!DATETIME:")
+            and f"{m['content']}".startswith("!DATETIME:")
         )
     ]
     messages = [current_datetime_system_message()] + messages
