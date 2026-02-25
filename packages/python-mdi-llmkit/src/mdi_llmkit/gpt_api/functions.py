@@ -6,13 +6,14 @@ import time
 from typing import Any, cast, Dict, List, Optional, Tuple, Union
 
 from openai._types import Omit, omit
-from openai.types.responses import ResponseTextConfigParam
+from openai.types.responses import EasyInputMessage, ResponseTextConfigParam
+
 
 GPT_MODEL_CHEAP = "gpt-4.1-nano"
 GPT_MODEL_SMART = "gpt-4.1"
 
-GPT_RETRY_LIMIT = 5
-GPT_RETRY_BACKOFF_TIME_SECONDS = 30  # seconds
+_GPT_RETRY_LIMIT_DEFAULT = 5
+_GPT_RETRY_BACKOFF_TIME_SECONDS_DEFAULT = 30  # seconds
 
 
 def current_datetime_system_message() -> Dict[str, str]:
@@ -42,9 +43,16 @@ def gpt_submit(
     model: Optional[str] = None,
     json_response: Optional[Union[bool, dict, str]] = None,
     system_announcement_message: Optional[str] = None,
+    retry_limit: Optional[int] = None,
+    retry_backoff_time_seconds: Optional[int] = None,
 ) -> Union[str, dict, list]:
     if not model:
         model = GPT_MODEL_SMART
+
+    if retry_limit is None:
+        retry_limit = _GPT_RETRY_LIMIT_DEFAULT
+    if retry_backoff_time_seconds is None:
+        retry_backoff_time_seconds = _GPT_RETRY_BACKOFF_TIME_SECONDS_DEFAULT
 
     efail = None
 
@@ -79,7 +87,8 @@ def gpt_submit(
         m
         for m in messages
         if not (
-            m.get("role") == "system"
+            type(m) is dict
+            and m.get("role") == "system"
             and type(m.get("content")) is str
             and m.get("content", "").startswith("!DATETIME:")
         )
@@ -93,7 +102,7 @@ def gpt_submit(
             }
         ] + messages
 
-    for iretry in range(GPT_RETRY_LIMIT):
+    for iretry in range(retry_limit):
         llmreply = ""
         try:
             # Attempt to get a response from the OpenAI API
@@ -126,16 +135,16 @@ def gpt_submit(
             efail = e
             print(
                 f"OpenAI API error:\n\n{e}.\n\n"
-                f"Retrying (attempt {iretry + 1} of {GPT_RETRY_LIMIT}) "
-                f"in {GPT_RETRY_BACKOFF_TIME_SECONDS} seconds..."
+                f"Retrying (attempt {iretry + 1} of {retry_limit}) "
+                f"in {retry_backoff_time_seconds} seconds..."
             )
-            time.sleep(GPT_RETRY_BACKOFF_TIME_SECONDS)
+            time.sleep(retry_backoff_time_seconds)
         except json.JSONDecodeError as e:
             efail = e
             print(
                 f"JSON decode error:\n\n{e}.\n\n"
                 f"Raw text of LLM Reply:\n{llmreply}\n\n"
-                f"Retrying (attempt {iretry + 1} of {GPT_RETRY_LIMIT}) immediately..."
+                f"Retrying (attempt {iretry + 1} of {retry_limit}) immediately..."
             )
 
     # Propagate the last error after all retries
