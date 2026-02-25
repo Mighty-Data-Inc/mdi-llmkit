@@ -201,17 +201,22 @@ class TestRetryBehavior(GPTSubmitFrameworkBase):
             openai.OpenAIError("temporary failure"),
             self.make_response(output_text="recovered"),
         )
+        warnings: List[str] = []
 
         with patch("mdi_llmkit.gpt_api.functions.time.sleep") as mock_sleep:
             result = self.call_submit(
                 client,
                 retry_limit=2,
                 retry_backoff_time_seconds=7,
+                warning_callback=warnings.append,
             )
 
         self.assertEqual(result, "recovered")
         self.assertEqual(len(client.responses.create_calls), 2)
         mock_sleep.assert_called_once_with(7)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("OpenAI API error", warnings[0])
+        self.assertIn("Retrying (attempt 1 of 2)", warnings[0])
 
     def test_raises_last_openai_error_after_retries_exhausted(self):
         client = self.make_client(
@@ -228,11 +233,20 @@ class TestRetryBehavior(GPTSubmitFrameworkBase):
             self.make_response(output_text="not json"),
             self.make_response(output_text='{"ok": true}'),
         )
+        warnings: List[str] = []
 
-        result = self.call_submit(client, json_response=True, retry_limit=2)
+        result = self.call_submit(
+            client,
+            json_response=True,
+            retry_limit=2,
+            warning_callback=warnings.append,
+        )
 
         self.assertEqual(result, {"ok": True})
         self.assertEqual(len(client.responses.create_calls), 2)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("JSON decode error", warnings[0])
+        self.assertIn("Retrying (attempt 1 of 2)", warnings[0])
 
     def test_raises_json_decode_error_when_json_retries_exhausted(self):
         client = self.make_client(self.make_response(output_text="not json"))
@@ -249,6 +263,29 @@ class TestRetryBehavior(GPTSubmitFrameworkBase):
 
 class TestJsonModes(GPTSubmitFrameworkBase):
     """Placeholder group for json_response mode handling."""
+
+    def test_warning_callback_receives_response_error_and_incomplete_detail_messages(
+        self,
+    ):
+        client = self.make_client(
+            self.make_response(
+                output_text='{"ok": true}',
+                error="non-fatal warning",
+                incomplete_details={"reason": "truncated"},
+            )
+        )
+        warnings: List[str] = []
+
+        result = self.call_submit(
+            client,
+            json_response=True,
+            warning_callback=warnings.append,
+        )
+
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(len(warnings), 2)
+        self.assertIn("OpenAI API returned an error", warnings[0])
+        self.assertIn("OpenAI API returned incomplete details", warnings[1])
 
     def test_json_response_true_uses_json_object_text_format(self):
         client = self.make_client(self.make_response(output_text='{"value": 1}'))

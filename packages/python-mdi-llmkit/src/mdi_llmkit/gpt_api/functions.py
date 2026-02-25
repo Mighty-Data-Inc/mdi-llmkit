@@ -3,7 +3,7 @@ import json
 import openai
 import time
 
-from typing import Any, Protocol, cast, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Protocol, cast, Dict, List, Optional, Tuple, Union
 
 from openai._types import Omit, omit
 from openai.types.responses import EasyInputMessage, ResponseTextConfigParam
@@ -54,6 +54,7 @@ def gpt_submit(
     system_announcement_message: Optional[str] = None,
     retry_limit: Optional[int] = None,
     retry_backoff_time_seconds: Optional[int] = None,
+    warning_callback: Optional[Callable[[str], None]] = None,
 ) -> Union[str, dict, list]:
     if not model:
         model = GPT_MODEL_SMART
@@ -124,12 +125,16 @@ def gpt_submit(
                 text=openai_text_param,
             )
             if llmresponse.error:
-                print("ERROR: OpenAI API returned an error:", llmresponse.error)
+                if warning_callback:
+                    warning_callback(
+                        f"ERROR: OpenAI API returned an error: {llmresponse.error}"
+                    )
             if llmresponse.incomplete_details:
-                print(
-                    "ERROR: OpenAI API returned incomplete details:",
-                    llmresponse.incomplete_details,
-                )
+                if warning_callback:
+                    warning_callback(
+                        "ERROR: OpenAI API returned incomplete details: "
+                        f"{llmresponse.incomplete_details}"
+                    )
             llmreply = llmresponse.output_text.strip()
             if not json_response:
                 return f"{llmreply}"
@@ -145,19 +150,21 @@ def gpt_submit(
             return llmobj
         except openai.OpenAIError as e:
             efail = e
-            print(
-                f"OpenAI API error:\n\n{e}.\n\n"
-                f"Retrying (attempt {iretry + 1} of {retry_limit}) "
-                f"in {retry_backoff_time_seconds} seconds..."
-            )
+            if warning_callback:
+                warning_callback(
+                    f"OpenAI API error:\n\n{e}.\n\n"
+                    f"Retrying (attempt {iretry + 1} of {retry_limit}) "
+                    f"in {retry_backoff_time_seconds} seconds..."
+                )
             time.sleep(retry_backoff_time_seconds)
         except json.JSONDecodeError as e:
             efail = e
-            print(
-                f"JSON decode error:\n\n{e}.\n\n"
-                f"Raw text of LLM Reply:\n{llmreply}\n\n"
-                f"Retrying (attempt {iretry + 1} of {retry_limit}) immediately..."
-            )
+            if warning_callback:
+                warning_callback(
+                    f"JSON decode error:\n\n{e}.\n\n"
+                    f"Raw text of LLM Reply:\n{llmreply}\n\n"
+                    f"Retrying (attempt {iretry + 1} of {retry_limit}) immediately..."
+                )
 
     # Propagate the last error after all retries
     if efail:
