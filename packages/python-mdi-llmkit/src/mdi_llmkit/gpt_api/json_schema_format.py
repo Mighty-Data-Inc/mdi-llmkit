@@ -1,8 +1,95 @@
+"""Helpers for building OpenAI Structured Outputs schemas from a compact DSL.
+
+This module exists to keep application code terse when defining JSON Schema for
+`text.format = {"type": "json_schema", ...}` in the OpenAI API.
+
+Instead of manually writing large nested schema dictionaries, callers provide a
+Python-first shorthand (types, dict/list exemplars, and tuple metadata), and
+`JSONSchemaFormat` expands it into a strict JSON Schema payload.
+
+Design goals:
+- Keep schema authoring ergonomic for common use cases.
+- Emit object schemas with `required` and `additionalProperties: false` by default.
+- Match the practical subset used by OpenAI Structured Outputs for this project.
+
+This is intentionally a convenience layer, not a complete JSON Schema compiler.
+
+For the full OpenAI Structured Outputs schema capabilities, refer to the official documentation:
+https://developers.openai.com/api/docs/guides/structured-outputs/
+"""
+
 from typing import Any, Dict, List, Optional, Union
 
 
-def JSONSchemaFormat(schema: Any, *, name: str, description: str):
-    """A convenience function that allows us to easily create JSON schema formats."""
+def JSONSchemaFormat(
+    schema: Any,
+    *,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Build an OpenAI Structured Outputs `json_schema` format payload.
+
+    The function accepts a compact schema DSL and returns a dictionary suitable
+    for OpenAI calls that use structured output formatting:
+
+    {
+        "format": {
+            "type": "json_schema",
+            "strict": True,
+            "name": <optional>,
+            "description": <optional>,
+            "schema": <expanded JSON schema object>
+        }
+    }
+
+    Supported shorthand patterns in `schema`
+    ----------------------------------------
+    - Primitive types/values:
+        - `str`, `int`, `float`, `bool` (or corresponding literal values)
+    - Object shorthand:
+        - `dict` maps to `{"type": "object", "properties": ...}`
+        - All keys become required.
+        - `additionalProperties` is always set to `False`.
+    - Array shorthand:
+        - `list` maps to `{"type": "array", "items": ...}`
+        - First list element is used as the item exemplar.
+    - String enum shorthand:
+        - A list with >=2 strings (e.g., `["a", "b"]`) becomes
+            `{"type": "string", "enum": [...]}`.
+    - Tuple metadata shorthand (order-insensitive):
+        - Description: any non-empty `str`
+        - Enum: `list[str]` with length >= 2
+        - Range: `(min, max)` where either side may be `int`, `float`, or `None`
+        - Schema value: the remaining item (type, dict, list, etc.)
+
+    Numeric range behavior
+    ----------------------
+    When the resolved node type is numeric (`integer` or `number`), tuple ranges
+    are emitted as JSON Schema-compatible `minimum` and `maximum`.
+
+    Root behavior
+    -------------
+    Structured Outputs expects an object at the root. If `schema` resolves to a
+    non-object, this function wraps it in an object property named by `name`
+    (or `"schema"` if no name is provided).
+
+    Notes and limitations
+    ---------------------
+    - This helper targets common project needs and does not implement the full
+        JSON Schema language.
+    - Tuple parsing treats falsy values as placeholders for the schema value,
+        which is convenient but can be ambiguous for some edge cases.
+    - The function raises `ValueError` when it cannot infer a supported type.
+
+    Args:
+            schema: Compact schema DSL value to expand.
+            name: Optional schema name in the OpenAI format envelope.
+            description: Optional schema-level description in the envelope.
+
+    Returns:
+            A dictionary containing OpenAI `format` configuration with expanded
+            JSON Schema under `format["schema"]`.
+    """
     retval = {
         "format": {
             "type": "json_schema",
@@ -135,11 +222,11 @@ def JSONSchemaFormat(schema: Any, *, name: str, description: str):
         if subschema_enum:
             recretval["enum"] = subschema_enum
 
-        if isinstance(subschema_value, (int, float)):
+        if recretval.get("type") in ("integer", "number"):
             if subschema_numrange[0] is not None:
-                recretval["minValue"] = subschema_numrange[0]
+                recretval["minimum"] = subschema_numrange[0]
             if subschema_numrange[1] is not None:
-                recretval["maxValue"] = subschema_numrange[1]
+                recretval["maximum"] = subschema_numrange[1]
 
         return recretval
 
