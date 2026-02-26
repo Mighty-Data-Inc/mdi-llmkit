@@ -6,7 +6,7 @@ import {
   JSON_NUMBER,
   JSON_STRING,
   JSONSchemaFormat,
-} from "../src/gpt_api/json_schema_format.js";
+} from "../../src/gpt_api/json_schema_format.js";
 
 describe("JSONSchemaFormat", () => {
   it("expands object schema with primitive fields", () => {

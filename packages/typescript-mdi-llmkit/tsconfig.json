@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "tests/json_surgery/aiModifyObject.test.ts", "tests/json_surgery/placemarkedJSON.test.ts"]
 }
