@@ -56,6 +56,38 @@ print(type(result))  # dict or list
 print(result)
 ```
 
+## JSON Surgery
+
+```python
+from openai import OpenAI
+from mdi_llmkit.json_surgery.json_surgery import json_surgery
+
+client = OpenAI()
+
+obj = {"status": "pending", "tags": ["alpha"]}
+result = json_surgery(
+    client,
+    obj,
+    'Set status to "approved" and append "done" to tags.',
+)
+
+print(result)
+```
+
+Placemark helpers are available in `mdi_llmkit.json_surgery.placemarked_json`:
+- `placemarked_json_stringify(obj, indent=2, skipped_keys=None)`
+- `navigate_to_json_path(obj, json_path)`
+
+## Local Dev (Windows venv)
+
+From `packages/python-mdi-llmkit`, activate the project venv and run tests:
+
+```powershell
+.\venv\Scripts\Activate.ps1
+python -c "import sys; print(sys.executable)"
+python -m unittest tests/test_placemarked_json.py tests/test_json_surgery.py
+```
+
 ## Notes
 
 - Package name for `pip install` is `mdi-llmkit`.
