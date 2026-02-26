@@ -3,9 +3,10 @@
 import json
 import time
 
-from typing import Any, Awaitable, Callable, NotRequired, TypedDict
+from typing import Any, Callable, NotRequired, TypedDict
 
 from mdi_llmkit.gpt_api.functions import OpenAIClientLike
+from mdi_llmkit.gpt_api.gpt_conversation import GptConversation
 
 from .placemarked_json import navigate_to_json_path, placemarked_json_stringify
 
@@ -123,13 +124,8 @@ class ValidationResult(TypedDict):
 class JSONSurgeryOptions(TypedDict):
     schema_description: NotRequired[str]
     skipped_keys: NotRequired[list[str]]
-    on_validate_before_return: NotRequired[
-        Callable[[Any], ValidationResult | None]
-        | Callable[[Any], Awaitable[ValidationResult | None]]
-    ]
-    on_work_in_progress: NotRequired[
-        Callable[[Any], Any | None] | Callable[[Any], Awaitable[Any | None]]
-    ]
+    on_validate_before_return: NotRequired[Callable[[Any], ValidationResult | None]]
+    on_work_in_progress: NotRequired[Callable[[Any], Any | None]]
     give_up_after_seconds: NotRequired[int]
     give_up_after_iterations: NotRequired[int]
 
@@ -142,7 +138,7 @@ class JSONSurgeryError(Exception):
         self.obj = json.loads(json.dumps(obj))
 
 
-def _deep_copy(value: Any) -> Any:
+def _deep_copy_json(value: Any) -> Any:
     return json.loads(json.dumps(value))
 
 
@@ -173,68 +169,6 @@ def _unpack_value_from_set_value_schema(value: dict[str, Any]) -> Any:
     raise ValueError(f"Invalid value object: {json.dumps(value)}")
 
 
-def parse_json_from_ai_response(json_text: str) -> Any:
-    """Parse the first balanced JSON object from AI output text."""
-    depth = 0
-    start = -1
-
-    for idx, ch in enumerate(json_text):
-        if ch == "{":
-            if depth == 0:
-                start = idx
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0 and start != -1:
-                return json.loads(json_text[start : idx + 1])
-
-    return None
-
-
-def call_llm_for_json(
-    openai_client: OpenAIClientLike,
-    body: dict[str, Any],
-    num_retries: int | None = None,
-) -> Any:
-    """Call OpenAI Responses and parse a JSON object from output text."""
-    if not num_retries:
-        num_retries = 5
-
-    ex: Exception | None = None
-    for _ in range(num_retries):
-        try:
-            llm_response = openai_client.responses.create(
-                **body,
-                timeout=30000,
-            )
-            llm_reply = llm_response.output_text
-            return parse_json_from_ai_response(llm_reply)
-        except Exception as error:
-            ex = error
-            if isinstance(error, json.JSONDecodeError) and (
-                "Unterminated string in JSON" in str(error)
-            ):
-                continue
-            raise
-
-    if ex:
-        raise ex
-    raise ValueError("Unknown failure in call_llm_for_json")
-
-
-def _is_async_callable(fn: Callable[..., Any]) -> bool:
-    code = getattr(fn, "__code__", None)
-    return bool(code and (code.co_flags & 0x80))
-
-
-def _run_callback(callback: Callable[[Any], Any], payload: Any) -> Any:
-    if _is_async_callable(callback):
-        import asyncio
-
-        return asyncio.run(callback(payload))
-    return callback(payload)
-
-
 def json_surgery(
     openai_client: OpenAIClientLike,
     obj: Any,
@@ -243,89 +177,215 @@ def json_surgery(
 ) -> Any:
     """Modify a JSON-like object iteratively via LLM-guided operations."""
     options = options or {}
-    obj = _deep_copy(obj)
+
+    if obj is None:
+        # NOTE: In practice, it should be a dict or a list.
+        # Not sure if it's valid to pass in a string, for example.
+        raise ValueError("The object to modify cannot be None.")
+
+    obj = _deep_copy_json(obj)
 
     time_started = time.time()
-    num_iterations = 0
 
-    messages: list[dict[str, Any]] = [
-        {
-            "role": "developer",
-            "content": (
-                "You are an expert software developer AI assistant.\n"
-                "The user will show you a JSON object and provide modification instructions.\n"
-                "Through a series of insertions, deletions, or updates, modify the JSON object\n"
-                "to satisfy the instructions."
-            ),
-        }
-    ]
+    convo_base = GptConversation(openai_client=openai_client)
+    convo_base.add_developer_message(
+        """
+You are an expert software developer AI assistant.
+The user will show you a JSON object and provide modification instructions.
+The modification instructions might not be entirely straightforward, so the
+process of implementing these changes may require careful thought and planning.
+Through a series of individual insertions, deletions, or updates, you will modify the JSON object
+to satisfy the user's instructions.
+You will not be doing this alone. I will be holding your hand through the entire process,
+providing feedback and guidance after each modification. You will also be getting verification
+from the system itself, to ensure that your modifications are valid and correct.
+"""
+    )
+    convo_base.add_user_message(
+        f"""
+Here is the JSON object to modify, in its original state prior to any modifications.
+It has been formatted with placemarks (comments) to indicate the positions of elements for
+better readability and easier navigation.
 
-    messages.append(
-        {
-            "role": "user",
-            "content": (
-                "Here is the JSON object to modify in its original state.\n\n---\n\n"
-                f"{placemarked_json_stringify(obj, 2, options.get('skipped_keys'))}"
-            ),
-        }
+---
+
+{placemarked_json_stringify(obj, 2, options.get('skipped_keys'))}"
+"""
     )
 
     schema_description = options.get("schema_description")
     if schema_description:
-        messages.append(
-            {
-                "role": "user",
-                "content": (
-                    "Here is the schema definition for the JSON object. "
-                    "Final output must conform to it.\n\n---\n\n"
-                    f"{schema_description}"
-                ),
-            }
+        convo_base.add_user_message(
+            f"""
+Here is the schema definition for the JSON object, so that you know the expected structure
+and data types of its properties. Make sure that your final results conform to this schema.
+DO NOT introduce any properties or values that violate this schema!
+
+---
+
+{schema_description}
+"""
         )
 
-    messages.append(
-        {
-            "role": "user",
-            "content": (
-                "Here are the modification instructions.\n\n---\n\n"
-                f"{modification_instructions}"
-            ),
-        }
+    convo_base.add_user_message(
+        f"""
+Here are the modification instructions.
+
+---
+
+{modification_instructions}
+"""
     )
 
-    messages.append(
-        {
-            "role": "developer",
-            "content": (
-                "Before we begin, provide a detailed modification plan. "
-                'Start your response with "Modification Plan:".'
-            ),
-        }
+    convo_base.add_developer_message(
+        """
+Before we begin, please provide a detailed plan outlining the specific steps you will take to
+implement the requested modifications to the JSON object. This plan should break down the
+modification instructions into a clear sequence of actions that you will perform, where each
+action corresponds to a specific change in the JSON structure -- either the adding, removing,
+or updating of specific individual properties or values.
+
+Your response should start with "Modification Plan:" followed by the detailed plan.
+"""
+    )
+    convo_base.submit()
+
+    convo_base.add_system_message(
+        """
+NAVIGATING THE JSON OBJECT AND JSON PATHS
+
+You have probably already noticed that the JSON object is annotated with placemarks
+(comments) to indicate the positions of objects and indexes for better readability.
+The syntax of these placemarks is quite straightforward, as it follows JavaScript/TypeScript
+notation for accessing properties and array elements.
+
+E.g. root["items"][0]["keywords"][1] refers to the second element of the "keywords" array
+of the first element of the "items" array in the root object.
+
+When prompted for a location in the JSON object, you'll emit a JSON list that corresponds
+to the path to that location, where each element in the list is either a property name (string)
+or an array index (number).
+
+Thus, the path to root["items"][0]["keywords"][1] would be represented as:
+json_path = ["items", 0, "keywords", 1]
+"""
+    )
+    convo_base.add_system_message(
+        """
+INSTRUCTIONS FOR MODIFICATION OPERATIONS
+
+You will be implementing the modification plan through a series of modification operations.
+By incrementally applying these operations, we will arrive at the final modified JSON object that
+satisfies the modification instructions.
+
+We will be permitted to take multiple passes over the JSON object, and make multiple
+modifications, so don't feel obligated to get everything right in the first few steps.
+We will have plenty of opportunities to iteratively develop the final result. Your initial list
+of operations to execute doesn't necessarily need to achieve the final result; if it merely
+"walks" towards the final result, that's perfectly fine, as we'll be able to continue to "walk"
+further towards the final result in subsequent iterations.
+
+Structure of a Modification Operation:
+
+- **json_path_of_parent**: A JSON path indicating the location in the JSON object where the
+    modification should be applied. We call this the "parent" location because we specify
+    the key or index within the parent later. For example, if you want to set the string
+    property "foo" to the value "bar" on the root object (i.e. root["foo"]="bar"), then
+    json_path_of_parent would be an empty list [], since the parent of "foo" is the root object.
+    If you want to append a new string value into the "keywords" array of the first
+    element of the "items" array (i.e. root["items"][0]["keywords"].push("new_keyword")), then
+    json_path_of_parent would be ["items", 0, "keywords"], since the parent of the new element
+    is the "keywords" array itself. The syntax of the json_path should follow the same notation
+    as described in the "Navigating the JSON Object and JSON Paths" section above.
+
+- **key_or_index**: The key (string) or array index (number) of the property or element to modify.
+    If the parent location (json_path_of_parent) is an object, then this will be a string key.
+    If the parent location is an array, then this will be a numeric index.
+    SPECIAL: If you're using the "append" action (see below) to add a new element to the end of
+    an array, then key_or_index is ignored; set it to -1 to indicate to yourself that it's
+    irrelevant.
+
+- **action**: The type of modification to perform. This can be one of the following values:
+    - "delete": Delete the specified property or array element. (The "data" field is ignored,
+        and should be set to null.) This "delete" action is functionally equivalent to
+        \`delete parent[key]\` for objects, or \`parent.splice(index, 1)\` for arrays.
+    - "assign": Set the property or element to a new value. If the parent is an array, then the
+        "assign" action will replace the existing element at the specified index. If the parent
+        is an object, then the "assign" action will set the value of the specified key, replacing
+        any existing value for that key if it already exists, or creating a new key-value pair if
+        the key does not already exist. This is functionally equivalent to:
+            \`parent[key] = data\` for objects, or
+            \`parent[index] = data\` for arrays.
+    - "append": Applicable only when the parent object is an array. Append a new element to the
+        end of the array. The "key_or_index" field is ignored. This is functionally equivalent to:
+            \`parent.push(data)\`.
+    - "insert": Applicable only when the parent object is an array. Insert a new element at the
+        specified index in the array. This is functionally equivalent to:
+            \`parent.splice(index, 0, data)\`.
+    - "rename": Applicable only when the parent object is an object. Rename a property from the
+        old key name (specified in "key_or_index") to a new key name. The "new_key_name" field
+        (see below) *must* be provided. The "data" field is ignored for this action; you should
+        just set it to null. This is functionally equivalent to:
+            \`parent[new_key_name] = parent[key_or_index]; delete parent[key_or_index]\`.
+
+- **new_key_name**: Applicable only for the "rename" action. This field specifies the new key name
+    to rename a property to. For all other actions, this field is ignored and should just be set
+    to an empty string.
+
+- **data**: The new value to set for "assign", "append", or "insert" actions. This field comes in
+    the following forms:
+
+    - **null**: You should set the data field to null when the action does not require a value,
+        such as "delete" or "rename". For all other actions, the data field cannot be null.
+
+    - **inline_value**: You explicitly write out the value to set. The value you construct will be
+        one of the following:
+        - A primitive value (string, number, boolean, null)
+        - An empty object ({}). This is useful for gradually building up complex objects through
+            a series of subsequent modifications.
+        - An empty array ([]). This is useful for gradually building up complex collections
+            through a series of subsequent modifications.
+        - An array whose elements are all either primitive values or empty objects/arrays. This is
+            useful for adding multiple related elements at once. If the array contains empty
+            objects/arrays, you can fill these in with actual values in subsequent modifications,
+            if needed.
+        - An object whose values are all either primitive values or empty objects/arrays. Again,
+            just like with arrays, if the object contains empty objects/arrays, you can fill these
+            in with actual values in subsequent modifications, if needed.
+        Note that "value" cannot recursively describe deeply nested structures in one step; it can
+        only describe at most a single layer of nesting. That's okay; you can build up complex
+        nested structures through a series of modifications, gradually filling in more and more
+        details with each modification. Just make sure to provide detailed notes about your plans
+        and intentions with each modification, so that we can keep track of the overall plan and
+        ensure that we're on the right track.
+
+    - **json_path_of_copy_source**: If you need to construct a deeply nested object, and there
+        happens to be a source object or array elsewhere in the JSON that already has a very
+        similar (or identical) structure, you can specify the JSON path to that source object
+        or array here. This can be a handy shortcut for creating complex structures without
+        having to manually specify every detail. PRO TIP: This is also a great way to **move**
+        existing structures around within the JSON, by copying from one path and then deleting
+        the original -- this makes moving a structure from one place to another a two-step process
+        instead of a long series of inline_value assignments.
+"""
     )
 
-    llm_response = openai_client.responses.create(
-        model="gpt-4.1",
-        input=messages,
-    )
-    llm_reply = llm_response.output_text
-    messages.append({"role": "assistant", "content": llm_reply})
-
-    messages_base = _deep_copy(messages)
     operations_done_so_far: list[str] = []
     operation_last = "(nothing, we just started)"
     operation_next = "(nothing, we just started)"
     operation_last_was_successful = True
-    is_first_iteration = True
+    num_iterations = 0
 
     while True:
-        messages = _deep_copy(messages_base)
+        convo = convo_base.clone()
 
-        if not is_first_iteration:
+        num_iterations += 1
+        if num_iterations > 1:
             on_wip = options.get("on_work_in_progress")
             if on_wip:
-                obj_wip_result = _run_callback(on_wip, _deep_copy(obj))
+                obj_wip_result = on_wip(_deep_copy_json(obj))
                 if obj_wip_result is not None:
-                    obj = _deep_copy(obj_wip_result)
+                    obj = _deep_copy_json(obj_wip_result)
 
             seconds_elapsed = int(time.time() - time_started)
             give_up_after_seconds = options.get("give_up_after_seconds")
@@ -337,77 +397,73 @@ def json_surgery(
                     obj,
                 )
 
-            num_iterations += 1
             give_up_after_iterations = options.get("give_up_after_iterations")
             if give_up_after_iterations and num_iterations > give_up_after_iterations:
                 raise JSONSurgeryError(
-                    "Giving up after maximum iterations reached. "
-                    f"Iteration count: {num_iterations} "
-                    f"Maximum allowed: {give_up_after_iterations}",
+                    f"Giving up after {give_up_after_iterations} iterations. "
+                    "Maximum iterations reached.",
                     obj,
                 )
 
-            messages.append(
-                {
-                    "role": "user",
-                    "content": (
-                        "STATUS: "
-                        f"{seconds_elapsed} seconds elapsed; "
-                        f"{len(operations_done_so_far)} operations across "
-                        f"{num_iterations - 1} iterations.\n\n"
-                        "Operations done:\n"
-                        f"{chr(10).join([f'{i + 1}. {op}' for i, op in enumerate(operations_done_so_far)]) or '(nothing; we just started)'}"
-                    ),
-                }
+            convo.add_user_message(
+                f"""
+CURRENT STATUS:
+We've been processing for {seconds_elapsed} seconds.
+We've performed {len(operations_done_so_far)} operations across {num_iterations - 1} iterations.
+"""
             )
-            messages.append(
-                {
-                    "role": "user",
-                    "content": (
-                        "Current state of JSON object.\n\n---\n\n"
-                        f"{placemarked_json_stringify(obj, 2, options.get('skipped_keys'))}"
-                    ),
-                }
+            if len(operations_done_so_far) > 0:
+                msg_opssofar = ""
+                for i, op in enumerate(operations_done_so_far):
+                    msg_opssofar += f"{i + 1}. {op}\n"
+                convo.add_user_message(
+                    "Here are the operations that we've performed so far:\n"
+                    f"{msg_opssofar}"
+                )
+            convo.add_user_message(
+                f"""
+Here is the JSON object in its current state, with our modifications up to this point applied.
+
+---
+
+{placemarked_json_stringify(obj, 2, options.get('skipped_keys'))}"
+            """
             )
-            messages.append(
-                {
-                    "role": "user",
-                    "content": (
-                        f"Last operation:\n{operation_last}\n\n"
-                        f"Planned next:\n{operation_next}"
-                    ),
-                }
+
+            convo.add_user_message(
+                f"""
+Just to help re-establish context from previous iterations, here is the last operation we
+performed on this JSON object:
+${operation_last}
+
+Here's what we were planning to do next:
+${operation_next}
+"""
             )
 
             if not operation_last_was_successful:
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": (
-                            "CRITICAL: Last operation failed. Do not repeat it exactly. "
-                            "Choose a different operation or strategy."
-                        ),
-                    }
+                convo.append(
+                    """
+CRITICAL NOTE: The last operation we had performed on this JSON object failed.
+Do not repeat this exact operation -- operations are deterministic, so if it failed before
+then it will fail again. Find a different approach to achieve the desired modification.
+Choose a different operation or strategy.
+"""
                 )
 
-        is_first_iteration = False
+        convo.add_developer_message(
+            """
+Determine what operation you'd like to perform at this point on this JSON object
+in order to alter it to get closer to the desired final state.
 
-        messages.append(
-            {
-                "role": "developer",
-                "content": (
-                    "Determine and describe the next modifications in plain English. "
-                    "If all instructions are satisfied, say we are done."
-                ),
-            }
-        )
+Feel free to deliberate and reason through your approach. Refer to the modification
+plan you drafted earlier, as needed.
 
-        llm_response = openai_client.responses.create(
-            model="gpt-4.1",
-            input=messages,
+If all instructions are satisfied and the object actually already is in its desired
+final state, say so.
+"""
         )
-        llm_reply = llm_response.output_text
-        messages.append({"role": "assistant", "content": llm_reply})
+        convo.submit()
 
         llm_reply_obj = call_llm_for_json(
             openai_client,
@@ -500,7 +556,7 @@ def json_surgery(
             validation_errors: list[str] = []
             on_validate = options.get("on_validate_before_return")
             if on_validate:
-                validation_result = _run_callback(on_validate, _deep_copy(obj))
+                validation_result = _run_callback(on_validate, _deep_copy_json(obj))
                 if validation_result:
                     if "obj_corrected" in validation_result:
                         obj = validation_result["obj_corrected"]
@@ -520,7 +576,7 @@ def json_surgery(
             operation_next = "Fix validation errors and try to exit again."
             continue
 
-        obj_modified = _deep_copy(obj)
+        obj_modified = _deep_copy_json(obj)
         for modification in modifications:
             try:
                 json_path_of_parent = modification.get("json_path_of_parent")
@@ -540,7 +596,7 @@ def json_surgery(
                         source_nav_result = navigate_to_json_path(
                             obj_modified, source_path
                         )
-                        value = _deep_copy(source_nav_result["path_target"])
+                        value = _deep_copy_json(source_nav_result["path_target"])
 
                 if json_path_of_parent is None:
                     raise ValueError('Missing required field "json_path_of_parent".')
