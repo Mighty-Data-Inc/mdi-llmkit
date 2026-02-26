@@ -1,24 +1,8 @@
-import { config as loadEnv } from 'dotenv';
-import { existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { OpenAI } from 'openai';
 import { describe, expect, it } from 'vitest';
-import { aiModifyObject, AIModifyObjectError } from '../../src/aimodobj/src/aiModifyObject';
+import { aiModifyObject, AIModifyObjectError } from '../../src/jsonSurgery/aiModifyObject.js';
 
-const currentFileDir = dirname(fileURLToPath(import.meta.url));
-const envCandidatePaths = [
-  resolve(process.cwd(), '.env.local'),
-  resolve(process.cwd(), '.env'),
-  resolve(currentFileDir, '../../../../.env.local'),
-  resolve(currentFileDir, '../../../../.env'),
-];
 
-for (const envPath of envCandidatePaths) {
-  if (existsSync(envPath)) {
-    loadEnv({ path: envPath, override: false });
-  }
-}
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
