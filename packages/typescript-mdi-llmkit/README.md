@@ -96,3 +96,13 @@ console.log(result);
 - JSON schema type markers in TypeScript:
 	- `JSON_INTEGER` for integer-only values.
 	- `JSON_NUMBER` for float-capable numeric values.
+
+## CI and Release
+
+- CI workflow: `.github/workflows/typescript-ci.yml`
+	- Runs on push to `main` and on pull requests when TypeScript package files change.
+	- Executes `npm ci`, `npm test`, and `npm run build` in `packages/typescript-mdi-llmkit`.
+- Release workflow: `.github/workflows/typescript-release.yml`
+	- Runs on tags matching `typescript-v*` (for example: `typescript-v0.1.0`).
+	- Requires repository secret `NPM_TOKEN` with publish permission to npm.
+	- Executes tests/build before `npm publish --access public --provenance`.
