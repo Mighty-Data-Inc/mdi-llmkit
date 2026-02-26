@@ -85,7 +85,13 @@ From `packages/python-mdi-llmkit`, activate the project venv and run tests:
 ```powershell
 .\venv\Scripts\Activate.ps1
 python -c "import sys; print(sys.executable)"
-python -m unittest tests/test_placemarked_json.py tests/test_json_surgery.py
+python -m unittest tests/test_placemarked_json.py tests/test_json_surgery_unit.py
+```
+
+Live `json_surgery` integration tests (real API) require `OPENAI_API_KEY`:
+
+```powershell
+python -m unittest tests/test_json_surgery.py
 ```
 
 ## Notes
