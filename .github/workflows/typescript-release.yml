@@ -13,6 +13,11 @@ jobs:
       contents: read
       id-token: write
 
+    environment: env-mdi-llmkit
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
     defaults:
       run:
         working-directory: packages/typescript-mdi-llmkit
@@ -40,5 +45,3 @@ jobs:
 
       - name: Publish to npm
         run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

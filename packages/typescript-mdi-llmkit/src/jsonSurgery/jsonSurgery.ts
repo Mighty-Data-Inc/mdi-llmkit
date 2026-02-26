@@ -1,6 +1,8 @@
 import { OpenAI } from 'openai';
-import { navigateToJSONPath, placemarkedJSONStringify } from './placemarkedJSON.js';
-
+import {
+  navigateToJSONPath,
+  placemarkedJSONStringify,
+} from './placemarkedJSON.js';
 
 const JSON_SCHEMA_ANYOF_PRIMITIVE_OR_EMPTY = [
   {
@@ -193,14 +195,11 @@ const callLLMforJSON = async (
 
   for (let i = 0; i < numRetries; i++) {
     try {
-      const llmResponse = await openai_client.responses.create(
-        body,
-        {
-          // It really shouldn't take more than 10 seconds to get a response.
-          // If it's taking 30, then something is wrong.
-          timeout: 30000
-        }
-      );
+      const llmResponse = await openai_client.responses.create(body, {
+        // It really shouldn't take more than 10 seconds to get a response.
+        // If it's taking 30, then something is wrong.
+        timeout: 30000,
+      });
 
       let llmReply = llmResponse.output_text;
       let llmReplyObj = parseJSONfromAIResponse(llmReply);
@@ -211,8 +210,13 @@ const callLLMforJSON = async (
 
       // Check if the error is a syntax error,
       // and its message contains "Unterminated string in JSON..."
-      if (error instanceof SyntaxError && error.message.includes('Unterminated string in JSON')) {
-        console.warn(`JSON parsing SyntaxError encountered. Retrying (${i + 1}/${numRetries})...`);
+      if (
+        error instanceof SyntaxError &&
+        error.message.includes('Unterminated string in JSON')
+      ) {
+        console.warn(
+          `JSON parsing SyntaxError encountered. Retrying (${i + 1}/${numRetries})...`
+        );
         continue; // Retry on this specific syntax error
       }
 
@@ -225,7 +229,7 @@ const callLLMforJSON = async (
 };
 
 /**
- * Optional configuration for {@link aiModifyObject}.
+ * Optional configuration for {@link jsonSurgery}.
  * @property schemaDescription Optional schema description for the JSON object. This can be written
  * in JSON Schema format, or as a textual explanation. It's passed as a string to the AI and has
  * no direct enforcement semantics.
@@ -248,29 +252,30 @@ const callLLMforJSON = async (
  * If `objCorrected` is returned, that corrected object is used.
  * If `errors` is missing or empty, the object is treated as valid.
  */
-export type AIModifyObjectOptions = {
+export type JSONSurgeryOptions = {
   schemaDescription?: string;
   skippedKeys?: string[];
-  onValidateBeforeReturn?: (obj: any) => Promise<{ objCorrected?: any; errors?: string[]; } | undefined>;
+  onValidateBeforeReturn?: (
+    obj: any
+  ) => Promise<{ objCorrected?: any; errors?: string[] } | undefined>;
   onWorkInProgress?: (obj: any) => Promise<any | undefined>;
   giveUpAfterSeconds?: number;
   giveUpAfterIterations?: number;
 };
 
 /**
- * Error type reserved for failures from {@link aiModifyObject}.
+ * Error type reserved for failures from {@link jsonSurgery}.
  * `obj` contains the object being modified, captured in whatever state it was
  * left in at the moment the exception was thrown.
  */
-export class AIModifyObjectError extends Error {
+export class JSONSurgeryError extends Error {
   obj: any;
   constructor(message: string, obj: any, options?: ErrorOptions) {
     super(message, options);
-    this.name = 'AIModifyObjectError';
+    this.name = 'JSONSurgeryError';
     this.obj = JSON.parse(JSON.stringify(obj));
   }
 }
-
 
 /**
  * Modifies a JSON object based on modification instructions using OpenAI's API.
@@ -279,14 +284,14 @@ export class AIModifyObjectError extends Error {
  * @param openai_client The OpenAI client to use for modifications
  * @param obj The JSON object to modify
  * @param modificationInstructions Instructions describing the modifications to apply
- * @param options Optional configuration object. See {@link AIModifyObjectOptions}.
+ * @param options Optional configuration object. See {@link JSONSurgeryOptions}.
  * @returns A copy of the original object, modified according to the instructions.
  */
-export const aiModifyObject = async (
+export const jsonSurgery = async (
   openai_client: OpenAI,
   obj: any,
   modificationInstructions: string,
-  options?: AIModifyObjectOptions
+  options?: JSONSurgeryOptions
 ): Promise<any> => {
   options = options || {};
 
@@ -513,28 +518,36 @@ Structure of a Modification Operation:
     if (!isFirstIteration) {
       // If we have a work-in-progress callback, call it with the current state.
       if (options?.onWorkInProgress) {
-        const objWipResult = await options.onWorkInProgress(JSON.parse(JSON.stringify(obj)));
+        const objWipResult = await options.onWorkInProgress(
+          JSON.parse(JSON.stringify(obj))
+        );
         if (objWipResult !== undefined) {
           obj = JSON.parse(JSON.stringify(objWipResult));
         }
       }
 
       const secondsElapsed = Math.floor((Date.now() - timeStarted) / 1000);
-      if (options?.giveUpAfterSeconds && secondsElapsed > options.giveUpAfterSeconds) {
-        throw new AIModifyObjectError(
+      if (
+        options?.giveUpAfterSeconds &&
+        secondsElapsed > options.giveUpAfterSeconds
+      ) {
+        throw new JSONSurgeryError(
           `Giving up after maximum time reached. ` +
-          `Seconds elapsed: ${secondsElapsed} ` +
-          `Maximum allowed: ${options.giveUpAfterSeconds}`,
+            `Seconds elapsed: ${secondsElapsed} ` +
+            `Maximum allowed: ${options.giveUpAfterSeconds}`,
           obj
         );
       }
 
       numIterations++;
-      if (options?.giveUpAfterIterations && numIterations > options.giveUpAfterIterations) {
-        throw new AIModifyObjectError(
+      if (
+        options?.giveUpAfterIterations &&
+        numIterations > options.giveUpAfterIterations
+      ) {
+        throw new JSONSurgeryError(
           `Giving up after maximum iterations reached. ` +
-          `Iteration count: ${numIterations} ` +
-          `Maximum allowed: ${options.giveUpAfterIterations}`,
+            `Iteration count: ${numIterations} ` +
+            `Maximum allowed: ${options.giveUpAfterIterations}`,
           obj
         );
       }
@@ -546,9 +559,10 @@ STATUS: We've been working on this object modification task for ${secondsElapsed
 We've performed ${operationsDoneSoFar.length} operations across ${numIterations - 1} iterations.
 
 Here's what we've done so far:
-${operationsDoneSoFar.map((op, idx) => `${idx + 1}. ${op}`).join('\n') ||
-          '(nothing; we just started)'
-          }
+${
+  operationsDoneSoFar.map((op, idx) => `${idx + 1}. ${op}`).join('\n') ||
+  '(nothing; we just started)'
+}
 `,
       });
       messages.push({
@@ -654,7 +668,7 @@ because the modification instructions have already been fully satisfied, then se
                         {
                           type: 'null',
                           description:
-                            'Data field should be null for "delete" and "rename" actions.'
+                            'Data field should be null for "delete" and "rename" actions.',
                         },
                         {
                           type: 'object',
@@ -688,7 +702,7 @@ an object.
                           required: ['json_path_of_copy_source'],
                           additionalProperties: false,
                         },
-                      ]
+                      ],
                     },
                   },
                   required: [
@@ -723,7 +737,9 @@ an object.
 
       let validationErrors: string[] = [];
       if (options.onValidateBeforeReturn) {
-        const validationResult = await options.onValidateBeforeReturn(JSON.parse(JSON.stringify(obj)));
+        const validationResult = await options.onValidateBeforeReturn(
+          JSON.parse(JSON.stringify(obj))
+        );
         if (validationResult) {
           if (validationResult.objCorrected) {
             // The validation function corrected the object.
@@ -769,7 +785,8 @@ The validator returned the following errors:
     const objModified = JSON.parse(JSON.stringify(obj));
     for (const modification of modifications) {
       try {
-        let { json_path_of_parent, key_or_index, action, new_key_name, data } = modification;
+        let { json_path_of_parent, key_or_index, action, new_key_name, data } =
+          modification;
 
         let value: any = null;
 
@@ -786,7 +803,9 @@ The validator returned the following errors:
         }
 
         if (!json_path_of_parent) {
-          throw new Error(`Missing required field "json_path_of_parent" in modification.`);
+          throw new Error(
+            `Missing required field "json_path_of_parent" in modification.`
+          );
         }
         if (!action) {
           throw new Error(`Missing required field "action" in modification.`);
@@ -798,17 +817,23 @@ The validator returned the following errors:
           );
         }
 
-        const jsonPathNavResult = navigateToJSONPath(objModified, json_path_of_parent);
+        const jsonPathNavResult = navigateToJSONPath(
+          objModified,
+          json_path_of_parent
+        );
 
         const targetParent = jsonPathNavResult.pathTarget;
 
         // targetParent must be either an object or an array. It cannot be
         // null, undefined, or a primitive value.
-        if (!targetParent || !(typeof targetParent === 'object' || Array.isArray(targetParent))) {
+        if (
+          !targetParent ||
+          !(typeof targetParent === 'object' || Array.isArray(targetParent))
+        ) {
           throw new Error(
             `Error: json_path_of_parent points to something that is neither an object ` +
-            `nor an array. It must point to either an object or an array. Instead, ` +
-            `${json_path_of_parent} points to the value: ${JSON.stringify(targetParent)}`
+              `nor an array. It must point to either an object or an array. Instead, ` +
+              `${json_path_of_parent} points to the value: ${JSON.stringify(targetParent)}`
           );
         }
 
@@ -827,8 +852,8 @@ The validator returned the following errors:
           if (!Array.isArray(targetParent)) {
             throw new Error(
               `Error: "append" action can only be applied to arrays. However, ` +
-              `the target location specified by json_path_of_parent points to a non-array value: ` +
-              `${JSON.stringify(targetParent)}`
+                `the target location specified by json_path_of_parent points to a non-array value: ` +
+                `${JSON.stringify(targetParent)}`
             );
           }
           targetParent.push(value);
@@ -836,8 +861,8 @@ The validator returned the following errors:
           if (!Array.isArray(targetParent)) {
             throw new Error(
               `Error: "insert" action can only be applied to arrays. However, ` +
-              `the target location specified by json_path_of_parent points to a non-array value: ` +
-              `${JSON.stringify(targetParent)}`
+                `the target location specified by json_path_of_parent points to a non-array value: ` +
+                `${JSON.stringify(targetParent)}`
             );
           }
           targetParent.splice(key_or_index as number, 0, value);
@@ -845,8 +870,8 @@ The validator returned the following errors:
           if (Array.isArray(targetParent)) {
             throw new Error(
               `Error: "rename" action can only be applied to objects. However, ` +
-              `the target location specified by json_path_of_parent points to an array value: ` +
-              `${JSON.stringify(targetParent)}`
+                `the target location specified by json_path_of_parent points to an array value: ` +
+                `${JSON.stringify(targetParent)}`
             );
           }
           targetParent[new_key_name] = targetParent[key_or_index];
