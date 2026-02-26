@@ -159,6 +159,71 @@ describe("JSONSchemaFormat", () => {
     });
   });
 
+  it("supports number type with range metadata when explicitly marked", () => {
+    const result = JSONSchemaFormat(
+      {
+        confidence: ["Confidence score", [0.0, 1.0], JSON_NUMBER],
+      },
+      { name: "test_schema" },
+    );
+
+    expect(result).toEqual({
+      format: {
+        type: "json_schema",
+        strict: true,
+        name: "test_schema",
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["confidence"],
+          properties: {
+            confidence: {
+              type: "number",
+              description: "Confidence score",
+              minimum: 0.0,
+              maximum: 1.0,
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it("supports one-sided numeric bounds", () => {
+    const result = JSONSchemaFormat(
+      {
+        min_only: ["Minimum only", [0, null], []],
+        max_only: ["Maximum only", [null, 10], []],
+      },
+      { name: "test_schema" },
+    );
+
+    expect(result).toEqual({
+      format: {
+        type: "json_schema",
+        strict: true,
+        name: "test_schema",
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["min_only", "max_only"],
+          properties: {
+            min_only: {
+              type: "integer",
+              description: "Minimum only",
+              minimum: 0,
+            },
+            max_only: {
+              type: "integer",
+              description: "Maximum only",
+              maximum: 10,
+            },
+          },
+        },
+      },
+    });
+  });
+
   it("supports nested recursive schemas", () => {
     const result = JSONSchemaFormat(
       {
@@ -225,6 +290,120 @@ describe("JSONSchemaFormat", () => {
                             scores: {
                               type: "array",
                               items: { type: "number" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it("supports nested recursive schemas with inner tuple metadata", () => {
+    const result = JSONSchemaFormat(
+      {
+        groups: [
+          {
+            name: "Group name",
+            members: [
+              "Members list",
+              [1, null],
+              [
+                {
+                  id: JSON_INTEGER,
+                  score: ["Member score", [0.0, 1.0], JSON_NUMBER],
+                  aliases: ["Alias list", [0, 3], ["Alias text"]],
+                  history: [
+                    {
+                      year: ["Year", [1900, 2100], JSON_INTEGER],
+                      tags: ["History tags", [0, 5], ["Tag text"]],
+                    },
+                  ],
+                },
+              ],
+            ],
+          },
+        ],
+      },
+      { name: "nested_schema_with_metadata" },
+    );
+
+    expect(result).toEqual({
+      format: {
+        type: "json_schema",
+        strict: true,
+        name: "nested_schema_with_metadata",
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["groups"],
+          properties: {
+            groups: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["name", "members"],
+                properties: {
+                  name: {
+                    type: "string",
+                    description: "Group name",
+                  },
+                  members: {
+                    type: "array",
+                    description: "Members list",
+                    minItems: 1,
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      required: ["id", "score", "aliases", "history"],
+                      properties: {
+                        id: { type: "integer" },
+                        score: {
+                          type: "number",
+                          description: "Member score",
+                          minimum: 0.0,
+                          maximum: 1.0,
+                        },
+                        aliases: {
+                          type: "array",
+                          description: "Alias list",
+                          minItems: 0,
+                          maxItems: 3,
+                          items: {
+                            type: "string",
+                            description: "Alias text",
+                          },
+                        },
+                        history: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            additionalProperties: false,
+                            required: ["year", "tags"],
+                            properties: {
+                              year: {
+                                type: "integer",
+                                description: "Year",
+                                minimum: 1900,
+                                maximum: 2100,
+                              },
+                              tags: {
+                                type: "array",
+                                description: "History tags",
+                                minItems: 0,
+                                maxItems: 5,
+                                items: {
+                                  type: "string",
+                                  description: "Tag text",
+                                },
+                              },
                             },
                           },
                         },

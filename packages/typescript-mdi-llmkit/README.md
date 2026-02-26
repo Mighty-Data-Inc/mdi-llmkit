@@ -84,3 +84,15 @@ console.log(result);
 
 - Current TypeScript parity slices include `gptSubmit`, `GptConversation`, and `JSONSchemaFormat`.
 - Integer schemas can be expressed with `JSON_INTEGER`; numeric (float-capable) schemas can use `JSON_NUMBER`.
+
+## Migration from Python
+
+- Function naming: Python `gpt_submit(...)` maps to TypeScript `gptSubmit(...)`.
+- Argument style: Python keyword args map to a TypeScript options object.
+- Conversation submit methods: Python `submit_user_message(...)` maps to `submitUserMessage(...)`.
+- JSON schema DSL: Python tuple metadata uses TypeScript array metadata.
+	- Python: `("Age", (0, 120), int)`
+	- TypeScript: `["Age", [0, 120], JSON_INTEGER]`
+- JSON schema type markers in TypeScript:
+	- `JSON_INTEGER` for integer-only values.
+	- `JSON_NUMBER` for float-capable numeric values.
