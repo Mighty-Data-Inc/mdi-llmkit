@@ -1,0 +1,30 @@
+{
+  "name": "mdi-llmkit",
+  "version": "0.1.0",
+  "description": "Utilities for managing multi-shot conversations and structured data handling in LLM applications",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "openai": "^6.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.10",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
