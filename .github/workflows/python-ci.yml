@@ -52,9 +52,10 @@ jobs:
           fi
 
       - name: Run tests
+        # TEMP DEBUG: run a single test while investigating API-key/header behavior.
+        # Revert to full suite once debugging is complete.
         run: python -u -m unittest -v tests.test_json_surgery.JSONSurgeryLiveAPITests.test_applies_simple_scalar_update_without_mutating_original
         # run: python -u -m unittest discover -v -s tests
-
 
       - name: Build package
         run: |
