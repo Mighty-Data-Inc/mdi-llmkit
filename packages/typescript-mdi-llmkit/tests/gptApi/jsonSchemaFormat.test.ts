@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 
 import {
   JSON_BOOLEAN,
@@ -6,85 +6,80 @@ import {
   JSON_NUMBER,
   JSON_STRING,
   JSONSchemaFormat,
-} from "../../src/gptApi/jsonSchemaFormat.js";
+} from '../../src/gptApi/jsonSchemaFormat.js';
 
-describe("JSONSchemaFormat", () => {
-  it("expands object schema with primitive fields", () => {
+describe('JSONSchemaFormat', () => {
+  it('expands object schema with primitive fields', () => {
     const result = JSONSchemaFormat(
+      'response',
       {
-        title: "Human-readable title",
+        title: 'Human-readable title',
         age: JSON_INTEGER,
         score: JSON_NUMBER,
         enabled: JSON_BOOLEAN,
       },
-      {
-        name: "response",
-        description: "Structured response payload",
-      },
+      'Structured response payload'
     );
 
     expect(result).toEqual({
       format: {
-        type: "json_schema",
+        type: 'json_schema',
         strict: true,
-        name: "response",
-        description: "Structured response payload",
+        name: 'response',
+        description: 'Structured response payload',
         schema: {
-          type: "object",
+          type: 'object',
           additionalProperties: false,
-          required: ["title", "age", "score", "enabled"],
+          required: ['title', 'age', 'score', 'enabled'],
           properties: {
-            title: { type: "string", description: "Human-readable title" },
-            age: { type: "integer" },
-            score: { type: "number" },
-            enabled: { type: "boolean" },
+            title: { type: 'string', description: 'Human-readable title' },
+            age: { type: 'integer' },
+            score: { type: 'number' },
+            enabled: { type: 'boolean' },
           },
         },
       },
     });
   });
 
-  it("wraps non-object root schema with provided name", () => {
-    const result = JSONSchemaFormat(JSON_STRING, { name: "answer" });
+  it('wraps non-object root schema with provided name', () => {
+    const result = JSONSchemaFormat('answer', JSON_STRING);
 
     expect(result).toEqual({
       format: {
-        type: "json_schema",
+        type: 'json_schema',
         strict: true,
-        name: "answer",
+        name: 'answer',
         schema: {
-          type: "object",
+          type: 'object',
           additionalProperties: false,
-          required: ["answer"],
+          required: ['answer'],
           properties: {
-            answer: { type: "string" },
+            answer: { type: 'string' },
           },
         },
       },
     });
   });
 
-  it("supports enum shorthand from string list", () => {
-    const result = JSONSchemaFormat(
-      {
-        mode: ["fast", "safe", "balanced"],
-      },
-      { name: "answer_enum" },
-    );
+  it('supports enum shorthand from string list', () => {
+    const result = JSONSchemaFormat('answer_enum', {
+      mode: ['fast', 'safe', 'balanced'],
+    });
 
     expect(result).toEqual({
       format: {
-        type: "json_schema",
+        type: 'json_schema',
         strict: true,
-        name: "answer_enum",
+        name: 'answer_enum',
         schema: {
-          type: "object",
+          type: 'object',
           additionalProperties: false,
-          required: ["mode"],
+          required: ['mode'],
           properties: {
             mode: {
-              type: "string",
-              enum: ["fast", "safe", "balanced"],
+              type: 'string',
+              enum: ['fast', 'safe', 'balanced'],
             },
           },
         },
@@ -92,30 +87,27 @@ describe("JSONSchemaFormat", () => {
     });
   });
 
-  it("supports metadata tuple style for array bounds and item description", () => {
-    const result = JSONSchemaFormat(
-      {
-        tags: ["Tag collection", [1, 5], ["Single tag"]],
-      },
-      { name: "test_schema" },
-    );
+  it('supports metadata tuple style for array bounds and item description', () => {
+    const result = JSONSchemaFormat('test_schema', {
+      tags: ['Tag collection', [1, 5], ['Single tag']],
+    });
 
     expect(result).toEqual({
       format: {
-        type: "json_schema",
+        type: 'json_schema',
         strict: true,
-        name: "test_schema",
+        name: 'test_schema',
         schema: {
-          type: "object",
+          type: 'object',
           additionalProperties: false,
-          required: ["tags"],
+          required: ['tags'],
           properties: {
             tags: {
-              type: "array",
-              description: "Tag collection",
+              type: 'array',
+              description: 'Tag collection',
               minItems: 1,
               maxItems: 5,
-              items: { type: "string", description: "Single tag" },
+              items: { type: 'string', description: 'Single tag' },
             },
           },
         },
@@ -123,35 +115,32 @@ describe("JSONSchemaFormat", () => {
     });
   });
 
-  it("infers integer and enum via tuple metadata", () => {
-    const result = JSONSchemaFormat(
-      {
-        age: ["Age in years", [0, 120], []],
-        color: ["Preferred color", ["red", "green", "blue"], []],
-      },
-      { name: "test_schema" },
-    );
+  it('infers integer and enum via tuple metadata', () => {
+    const result = JSONSchemaFormat('test_schema', {
+      age: ['Age in years', [0, 120], []],
+      color: ['Preferred color', ['red', 'green', 'blue'], []],
+    });
 
     expect(result).toEqual({
       format: {
-        type: "json_schema",
+        type: 'json_schema',
         strict: true,
-        name: "test_schema",
+        name: 'test_schema',
         schema: {
-          type: "object",
+          type: 'object',
           additionalProperties: false,
-          required: ["age", "color"],
+          required: ['age', 'color'],
           properties: {
             age: {
-              type: "integer",
-              description: "Age in years",
+              type: 'integer',
+              description: 'Age in years',
               minimum: 0,
               maximum: 120,
             },
             color: {
-              type: "string",
-              description: "Preferred color",
-              enum: ["red", "green", "blue"],
+              type: 'string',
+              description: 'Preferred color',
+              enum: ['red', 'green', 'blue'],
             },
           },
         },
@@ -159,27 +148,24 @@ describe("JSONSchemaFormat", () => {
     });
   });
 
-  it("supports number type with range metadata when explicitly marked", () => {
-    const result = JSONSchemaFormat(
-      {
-        confidence: ["Confidence score", [0.0, 1.0], JSON_NUMBER],
-      },
-      { name: "test_schema" },
-    );
+  it('supports number type with range metadata when explicitly marked', () => {
+    const result = JSONSchemaFormat('test_schema', {
+      confidence: ['Confidence score', [0.0, 1.0], JSON_NUMBER],
+    });
 
     expect(result).toEqual({
       format: {
-        type: "json_schema",
+        type: 'json_schema',
         strict: true,
-        name: "test_schema",
+        name: 'test_schema',
         schema: {
-          type: "object",
+          type: 'object',
           additionalProperties: false,
-          required: ["confidence"],
+          required: ['confidence'],
           properties: {
             confidence: {
-              type: "number",
-              description: "Confidence score",
+              type: 'number',
+              description: 'Confidence score',
               minimum: 0.0,
               maximum: 1.0,
             },
@@ -189,33 +175,30 @@ describe("JSONSchemaFormat", () => {
     });
   });
 
-  it("supports one-sided numeric bounds", () => {
-    const result = JSONSchemaFormat(
-      {
-        min_only: ["Minimum only", [0, null], []],
-        max_only: ["Maximum only", [null, 10], []],
-      },
-      { name: "test_schema" },
-    );
+  it('supports one-sided numeric bounds', () => {
+    const result = JSONSchemaFormat('test_schema', {
+      min_only: ['Minimum only', [0, null], []],
+      max_only: ['Maximum only', [null, 10], []],
+    });
 
     expect(result).toEqual({
       format: {
-        type: "json_schema",
+        type: 'json_schema',
         strict: true,
-        name: "test_schema",
+        name: 'test_schema',
         schema: {
-          type: "object",
+          type: 'object',
           additionalProperties: false,
-          required: ["min_only", "max_only"],
+          required: ['min_only', 'max_only'],
           properties: {
             min_only: {
-              type: "integer",
-              description: "Minimum only",
+              type: 'integer',
+              description: 'Minimum only',
               minimum: 0,
             },
             max_only: {
-              type: "integer",
-              description: "Maximum only",
+              type: 'integer',
+              description: 'Maximum only',
               maximum: 10,
             },
           },
@@ -224,72 +207,69 @@ describe("JSONSchemaFormat", () => {
     });
   });
 
-  it("supports nested recursive schemas", () => {
-    const result = JSONSchemaFormat(
-      {
-        groups: [
-          {
-            name: "Group name",
-            members: [
-              {
-                id: JSON_INTEGER,
-                roles: ["admin", "viewer"],
-                tags: ["Tag label"],
-                profile: {
-                  active: JSON_BOOLEAN,
-                  scores: [JSON_NUMBER],
-                },
+  it('supports nested recursive schemas', () => {
+    const result = JSONSchemaFormat('nested_schema', {
+      groups: [
+        {
+          name: 'Group name',
+          members: [
+            {
+              id: JSON_INTEGER,
+              roles: ['admin', 'viewer'],
+              tags: ['Tag label'],
+              profile: {
+                active: JSON_BOOLEAN,
+                scores: [JSON_NUMBER],
               },
-            ],
-          },
-        ],
-      },
-      { name: "nested_schema" },
-    );
+            },
+          ],
+        },
+      ],
+    });
 
     expect(result).toEqual({
       format: {
-        type: "json_schema",
+        type: 'json_schema',
         strict: true,
-        name: "nested_schema",
+        name: 'nested_schema',
         schema: {
-          type: "object",
+          type: 'object',
           additionalProperties: false,
-          required: ["groups"],
+          required: ['groups'],
           properties: {
             groups: {
-              type: "array",
+              type: 'array',
               items: {
-                type: "object",
+                type: 'object',
                 additionalProperties: false,
-                required: ["name", "members"],
+                required: ['name', 'members'],
                 properties: {
                   name: {
-                    type: "string",
-                    description: "Group name",
+                    type: 'string',
+                    description: 'Group name',
                   },
                   members: {
-                    type: "array",
+                    type: 'array',
                     items: {
-                      type: "object",
+                      type: 'object',
                       additionalProperties: false,
-                      required: ["id", "roles", "tags", "profile"],
+                      required: ['id', 'roles', 'tags', 'profile'],
                       properties: {
-                        id: { type: "integer" },
-                        roles: { type: "string", enum: ["admin", "viewer"] },
+                        id: { type: 'integer' },
+                        roles: { type: 'string', enum: ['admin', 'viewer'] },
                         tags: {
-                          type: "array",
-                          items: { type: "string", description: "Tag label" },
+                          type: 'array',
+                          items: { type: 'string', description: 'Tag label' },
                         },
                         profile: {
-                          type: "object",
+                          type: 'object',
                           additionalProperties: false,
-                          required: ["active", "scores"],
+                          required: ['active', 'scores'],
                           properties: {
-                            active: { type: "boolean" },
+                            active: { type: 'boolean' },
                             scores: {
-                              type: "array",
-                              items: { type: "number" },
+                              type: 'array',
+                              items: { type: 'number' },
                             },
                           },
                         },
@@ -305,103 +285,100 @@ describe("JSONSchemaFormat", () => {
     });
   });
 
-  it("supports nested recursive schemas with inner tuple metadata", () => {
-    const result = JSONSchemaFormat(
-      {
-        groups: [
-          {
-            name: "Group name",
-            members: [
-              "Members list",
-              [1, null],
-              [
-                {
-                  id: JSON_INTEGER,
-                  score: ["Member score", [0.0, 1.0], JSON_NUMBER],
-                  aliases: ["Alias list", [0, 3], ["Alias text"]],
-                  history: [
-                    {
-                      year: ["Year", [1900, 2100], JSON_INTEGER],
-                      tags: ["History tags", [0, 5], ["Tag text"]],
-                    },
-                  ],
-                },
-              ],
+  it('supports nested recursive schemas with inner tuple metadata', () => {
+    const result = JSONSchemaFormat('nested_schema_with_metadata', {
+      groups: [
+        {
+          name: 'Group name',
+          members: [
+            'Members list',
+            [1, null],
+            [
+              {
+                id: JSON_INTEGER,
+                score: ['Member score', [0.0, 1.0], JSON_NUMBER],
+                aliases: ['Alias list', [0, 3], ['Alias text']],
+                history: [
+                  {
+                    year: ['Year', [1900, 2100], JSON_INTEGER],
+                    tags: ['History tags', [0, 5], ['Tag text']],
+                  },
+                ],
+              },
             ],
-          },
-        ],
-      },
-      { name: "nested_schema_with_metadata" },
-    );
+          ],
+        },
+      ],
+    });
 
     expect(result).toEqual({
       format: {
-        type: "json_schema",
+        type: 'json_schema',
         strict: true,
-        name: "nested_schema_with_metadata",
+        name: 'nested_schema_with_metadata',
         schema: {
-          type: "object",
+          type: 'object',
           additionalProperties: false,
-          required: ["groups"],
+          required: ['groups'],
           properties: {
             groups: {
-              type: "array",
+              type: 'array',
               items: {
-                type: "object",
+                type: 'object',
                 additionalProperties: false,
-                required: ["name", "members"],
+                required: ['name', 'members'],
                 properties: {
                   name: {
-                    type: "string",
-                    description: "Group name",
+                    type: 'string',
+                    description: 'Group name',
                   },
                   members: {
-                    type: "array",
-                    description: "Members list",
+                    type: 'array',
+                    description: 'Members list',
                     minItems: 1,
                     items: {
-                      type: "object",
+                      type: 'object',
                       additionalProperties: false,
-                      required: ["id", "score", "aliases", "history"],
+                      required: ['id', 'score', 'aliases', 'history'],
                       properties: {
-                        id: { type: "integer" },
+                        id: { type: 'integer' },
                         score: {
-                          type: "number",
-                          description: "Member score",
+                          type: 'number',
+                          description: 'Member score',
                           minimum: 0.0,
                           maximum: 1.0,
                         },
                         aliases: {
-                          type: "array",
-                          description: "Alias list",
+                          type: 'array',
+                          description: 'Alias list',
                           minItems: 0,
                           maxItems: 3,
                           items: {
-                            type: "string",
-                            description: "Alias text",
+                            type: 'string',
+                            description: 'Alias text',
                           },
                         },
                         history: {
-                          type: "array",
+                          type: 'array',
                           items: {
-                            type: "object",
+                            type: 'object',
                             additionalProperties: false,
-                            required: ["year", "tags"],
+                            required: ['year', 'tags'],
                             properties: {
                               year: {
-                                type: "integer",
-                                description: "Year",
+                                type: 'integer',
+                                description: 'Year',
                                 minimum: 1900,
                                 maximum: 2100,
                               },
                               tags: {
-                                type: "array",
-                                description: "History tags",
+                                type: 'array',
+                                description: 'History tags',
                                 minItems: 0,
                                 maxItems: 5,
                                 items: {
-                                  type: "string",
-                                  description: "Tag text",
+                                  type: 'string',
+                                  description: 'Tag text',
                                 },
                               },
                             },
@@ -419,9 +396,9 @@ describe("JSONSchemaFormat", () => {
     });
   });
 
-  it("throws for unsupported schema values", () => {
-    expect(() => JSONSchemaFormat({ bad: Symbol("x") })).toThrow(
-      "Unrecognized type for schema value",
+  it('throws for unsupported schema values', () => {
+    expect(() => JSONSchemaFormat('test_schema', { bad: Symbol('x') })).toThrow(
+      'Unrecognized type for schema value'
     );
   });
 });

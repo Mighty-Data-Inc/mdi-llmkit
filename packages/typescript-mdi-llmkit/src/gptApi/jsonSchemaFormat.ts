@@ -1,16 +1,11 @@
-export const JSON_INTEGER = Symbol("JSON_INTEGER");
-export const JSON_NUMBER = Symbol("JSON_NUMBER");
+export const JSON_INTEGER = Symbol('JSON_INTEGER');
+export const JSON_NUMBER = Symbol('JSON_NUMBER');
 export const JSON_STRING = String;
 export const JSON_BOOLEAN = Boolean;
 
-export interface JSONSchemaFormatOptions {
-  name?: string;
-  description?: string;
-}
-
 export interface JSONSchemaFormatResult {
   format: {
-    type: "json_schema";
+    type: 'json_schema';
     strict: true;
     name?: string;
     description?: string;
@@ -19,33 +14,39 @@ export interface JSONSchemaFormatResult {
 }
 
 const TYPEMAP = new Map<unknown, string>([
-  [JSON_STRING, "string"],
-  [JSON_INTEGER, "integer"],
-  [JSON_NUMBER, "number"],
-  [JSON_BOOLEAN, "boolean"],
-  [String, "string"],
-  [Boolean, "boolean"],
-  [BigInt, "integer"],
-  [Number, "number"],
+  [JSON_STRING, 'string'],
+  [JSON_INTEGER, 'integer'],
+  [JSON_NUMBER, 'number'],
+  [JSON_BOOLEAN, 'boolean'],
+  [String, 'string'],
+  [Boolean, 'boolean'],
+  [BigInt, 'integer'],
+  [Number, 'number'],
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === 'string')
+  );
 }
 
-function isNumericRangeArray(value: unknown): value is [number | null, number | null] {
+function isNumericRangeArray(
+  value: unknown
+): value is [number | null, number | null] {
   if (!Array.isArray(value) || value.length !== 2) {
     return false;
   }
   const [min, max] = value;
-  const minValid = min === null || typeof min === "number";
-  const maxValid = max === null || typeof max === "number";
+  const minValid = min === null || typeof min === 'number';
+  const maxValid = max === null || typeof max === 'number';
 
-  return minValid && maxValid && (typeof min === "number" || typeof max === "number");
+  return (
+    minValid && maxValid && (typeof min === 'number' || typeof max === 'number')
+  );
 }
 
 function isTupleMetadataArray(value: unknown): value is unknown[] {
@@ -56,7 +57,9 @@ function isTupleMetadataArray(value: unknown): value is unknown[] {
     return false;
   }
 
-  return value.some((item) => typeof item === "string" || isNumericRangeArray(item));
+  return value.some(
+    (item) => typeof item === 'string' || isNumericRangeArray(item)
+  );
 }
 
 function inferPrimitiveType(schemaValue: unknown): string | null {
@@ -65,24 +68,24 @@ function inferPrimitiveType(schemaValue: unknown): string | null {
     return direct;
   }
 
-  if (typeof schemaValue === "string") {
-    return "string";
+  if (typeof schemaValue === 'string') {
+    return 'string';
   }
-  if (typeof schemaValue === "boolean") {
-    return "boolean";
+  if (typeof schemaValue === 'boolean') {
+    return 'boolean';
   }
-  if (typeof schemaValue === "bigint") {
-    return "integer";
+  if (typeof schemaValue === 'bigint') {
+    return 'integer';
   }
-  if (typeof schemaValue === "number") {
-    return Number.isInteger(schemaValue) ? "integer" : "number";
+  if (typeof schemaValue === 'number') {
+    return Number.isInteger(schemaValue) ? 'integer' : 'number';
   }
 
   return null;
 }
 
 function convertSchemaRecursive(subschema: unknown): Record<string, unknown> {
-  let subschemaDescription = "";
+  let subschemaDescription = '';
   let subschemaEnum: string[] = [];
   let subschemaNumrange: [number | null, number | null] = [null, null];
   let subschemaValue: unknown = subschema;
@@ -94,7 +97,7 @@ function convertSchemaRecursive(subschema: unknown): Record<string, unknown> {
         continue;
       }
 
-      if (typeof item === "string") {
+      if (typeof item === 'string') {
         subschemaDescription = item;
         continue;
       }
@@ -123,7 +126,10 @@ function convertSchemaRecursive(subschema: unknown): Record<string, unknown> {
 
     const [nr0, nr1] = subschemaNumrange;
     if (nr0 !== null || nr1 !== null) {
-      if ((typeof nr0 === "number" && !Number.isInteger(nr0)) || (typeof nr1 === "number" && !Number.isInteger(nr1))) {
+      if (
+        (typeof nr0 === 'number' && !Number.isInteger(nr0)) ||
+        (typeof nr1 === 'number' && !Number.isInteger(nr1))
+      ) {
         subschemaValue = JSON_NUMBER;
       } else {
         subschemaValue = JSON_INTEGER;
@@ -134,7 +140,7 @@ function convertSchemaRecursive(subschema: unknown): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
   if (isRecord(subschemaValue)) {
-    result.type = "object";
+    result.type = 'object';
     if (subschemaDescription) {
       result.description = subschemaDescription;
     }
@@ -145,8 +151,8 @@ function convertSchemaRecursive(subschema: unknown): Record<string, unknown> {
 
     const properties: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(subschemaValue)) {
-      if (typeof value === "string") {
-        properties[key] = { type: "string", description: value };
+      if (typeof value === 'string') {
+        properties[key] = { type: 'string', description: value };
       } else {
         properties[key] = convertSchemaRecursive(value);
       }
@@ -155,10 +161,10 @@ function convertSchemaRecursive(subschema: unknown): Record<string, unknown> {
     result.properties = properties;
   } else if (Array.isArray(subschemaValue)) {
     if (subschemaValue.length >= 2 && isStringArray(subschemaValue)) {
-      result.type = "string";
+      result.type = 'string';
       subschemaEnum = subschemaValue;
     } else {
-      result.type = "array";
+      result.type = 'array';
       if (subschemaDescription) {
         result.description = subschemaDescription;
       }
@@ -170,8 +176,8 @@ function convertSchemaRecursive(subschema: unknown): Record<string, unknown> {
       }
 
       const arrayExemplar = subschemaValue[0];
-      if (typeof arrayExemplar === "string") {
-        result.items = { type: "string", description: arrayExemplar };
+      if (typeof arrayExemplar === 'string') {
+        result.items = { type: 'string', description: arrayExemplar };
       } else {
         result.items = convertSchemaRecursive(arrayExemplar);
       }
@@ -179,7 +185,9 @@ function convertSchemaRecursive(subschema: unknown): Record<string, unknown> {
   } else {
     const primitiveType = inferPrimitiveType(subschemaValue);
     if (!primitiveType) {
-      throw new Error(`Unrecognized type for schema value: ${String(subschemaValue)}`);
+      throw new Error(
+        `Unrecognized type for schema value: ${String(subschemaValue)}`
+      );
     }
     result.type = primitiveType;
     if (subschemaDescription) {
@@ -191,7 +199,7 @@ function convertSchemaRecursive(subschema: unknown): Record<string, unknown> {
     result.enum = subschemaEnum;
   }
 
-  if (result.type === "integer" || result.type === "number") {
+  if (result.type === 'integer' || result.type === 'number') {
     if (subschemaNumrange[0] !== null) {
       result.minimum = subschemaNumrange[0];
     }
@@ -204,33 +212,36 @@ function convertSchemaRecursive(subschema: unknown): Record<string, unknown> {
 }
 
 export function JSONSchemaFormat(
+  name: string,
   schema: unknown,
-  options: JSONSchemaFormatOptions = {},
+  description?: string
 ): JSONSchemaFormatResult {
   const result: JSONSchemaFormatResult = {
     format: {
-      type: "json_schema",
+      type: 'json_schema',
       strict: true,
-      schema: { type: "object", properties: {}, required: [], additionalProperties: false },
+      name,
+      schema: {
+        type: 'object',
+        properties: {},
+        required: [],
+        additionalProperties: false,
+      },
     },
   };
 
-  if (options.name) {
-    result.format.name = options.name;
-  }
-  if (options.description) {
-    result.format.description = options.description;
+  if (description) {
+    result.format.description = description;
   }
 
   let converted = convertSchemaRecursive(schema);
-  if (converted.type !== "object") {
-    const wrapperName = options.name || "schema";
+  if (converted.type !== 'object') {
     converted = {
-      type: "object",
-      required: [wrapperName],
+      type: 'object',
+      required: [name],
       additionalProperties: false,
       properties: {
-        [wrapperName]: converted,
+        [name]: converted,
       },
     };
   }

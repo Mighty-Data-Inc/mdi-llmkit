@@ -222,14 +222,14 @@ export class JSONSurgeryError extends Error {
  * Modifies a JSON object based on modification instructions using OpenAI's API.
  * Does NOT modify the original object in place; instead, works with a copy and returns
  * the modified copy.
- * @param openai_client The OpenAI client to use for modifications
+ * @param openaiClient The OpenAI client to use for modifications
  * @param obj The JSON object to modify
  * @param modificationInstructions Instructions describing the modifications to apply
  * @param options Optional configuration object. See {@link JSONSurgeryOptions}.
  * @returns A copy of the original object, modified according to the instructions.
  */
 export const jsonSurgery = async (
-  openai_client: OpenAI,
+  openaiClient: OpenAI,
   obj: any,
   modificationInstructions: string,
   options?: JSONSurgeryOptions
@@ -245,7 +245,7 @@ export const jsonSurgery = async (
 
   const timeStarted = Date.now();
 
-  const convoBase = new GptConversation([], { openaiClient: openai_client });
+  const convoBase = new GptConversation([], { openaiClient });
   convoBase.addDeveloperMessage(`
 You are an expert software developer AI assistant.
 The user will show you a JSON object and provide modification instructions.
