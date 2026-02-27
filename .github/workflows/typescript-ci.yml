@@ -38,6 +38,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Diagnostic confirmation of OPENAI_API_KEY
+        shell: bash
+        run: |
+          if [ -z "${OPENAI_API_KEY}" ]; then
+            echo "OPENAI_API_KEY=<missing>"
+          else
+            key_prefix="${OPENAI_API_KEY:0:12}"
+            key_suffix="${OPENAI_API_KEY: -4}"
+            echo "OPENAI_API_KEY=${key_prefix}***${key_suffix}"
+          fi
+
       - name: Run tests
         run: npm test
 
