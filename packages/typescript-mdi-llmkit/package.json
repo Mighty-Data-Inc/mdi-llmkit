@@ -20,6 +20,10 @@
     "./jsonSurgery": {
       "types": "./dist/src/jsonSurgery/jsonSurgery.d.ts",
       "import": "./dist/src/jsonSurgery/jsonSurgery.js"
+    },
+    "./comparison": {
+      "types": "./dist/src/comparison/index.d.ts",
+      "import": "./dist/src/comparison/index.js"
     }
   },
   "files": [

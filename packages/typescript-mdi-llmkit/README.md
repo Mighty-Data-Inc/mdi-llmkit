@@ -76,6 +76,73 @@ import { jsonSurgery } from 'mdi-llmkit/jsonSurgery';
 - It supports optional schema guidance and key-skipping for model-visible context.
 - It supports validation/progress callbacks and soft iteration/time limits.
 
+## `compareItemLists` (comparison)
+
+`compareItemLists` performs a semantic diff between a "before" list and an "after" list,
+including LLM-assisted rename/add/remove decisions.
+
+Types:
+
+- `SemanticallyComparableListItem`
+  - `string`
+  - `{ name: string; description?: string }`
+- `ItemComparisonResult`
+  - `Removed | Added | Renamed | Unchanged`
+- `OnComparingItemCallback`
+  - `(item, isFromBeforeList, isStarting, result, newName, error, totalProcessedSoFar, totalLeftToProcess) => void`
+
+Behavior notes:
+
+- Item matching is name-based and case-insensitive.
+- `description` provides extra model context but is not identity.
+- Names are expected to be unique within each list (case-insensitive).
+- Progress callback is fired at item start (`isStarting=true`) and finish (`isStarting=false`).
+
+Example:
+
+```ts
+import OpenAI from 'openai';
+import {
+  compareItemLists,
+  ItemComparisonResult,
+  type OnComparingItemCallback,
+} from 'mdi-llmkit/comparison';
+
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const onComparingItem: OnComparingItemCallback = (
+  item,
+  isFromBeforeList,
+  isStarting,
+  result,
+  newName,
+  error,
+  processed,
+  left
+) => {
+  if (error) {
+    console.warn('Comparison warning:', error);
+  }
+  if (!isStarting && result === ItemComparisonResult.Renamed) {
+    console.log('Renamed:', item, '->', newName);
+  }
+  console.log({ isFromBeforeList, isStarting, result, processed, left });
+};
+
+const comparison = await compareItemLists(
+  client,
+  [{ name: 'Widget A', description: 'Legacy widget' }, 'Widget B'],
+  [
+    { name: 'Widget Alpha', description: 'Migrated name for Widget A' },
+    'Widget B',
+  ],
+  'Widgets migrated from legacy catalog to new naming standards.',
+  onComparingItem
+);
+
+console.log(comparison);
+```
+
 ## JSON Response Mode
 
 ```ts
@@ -97,6 +164,7 @@ console.log(result);
 
 - Current TypeScript parity slices include `gptSubmit`, `GptConversation`, and `JSONSchemaFormat`.
 - You can import GPT API symbols via subpath imports, e.g. `import { GptConversation } from "mdi-llmkit/gptApi"`.
+- Comparison symbols are available via `mdi-llmkit/comparison`.
 - Integer schemas can be expressed with `JSON_INTEGER`; numeric (float-capable) schemas can use `JSON_NUMBER`.
 
 ## Migration from Python

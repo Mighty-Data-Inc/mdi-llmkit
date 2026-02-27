@@ -1,13 +1,81 @@
+/**
+ * Utilities for semantic comparison of two item lists using deterministic pre-processing
+ * plus LLM-assisted decisions for ambiguous cases.
+ *
+ * High-level flow:
+ * 1) Normalize/sort items and remove obvious case-insensitive exact matches.
+ * 2) Ask the LLM to classify remaining "before" items as removed or renamed.
+ * 3) Ask the LLM whether remaining "after" items should be considered added.
+ * 4) Return `removed`, `added`, `renamed`, and `unchanged` buckets.
+ *
+ * Key assumptions:
+ * - Item names are unique within each input list (case-insensitive).
+ * - Comparison is name-based (`string` value or object `name` field).
+ * - Optional object `description` is context-only and does not affect identity.
+ *
+ * Progress reporting:
+ * - `OnComparingItemCallback` can be provided to receive start/finish events for each item,
+ *   including source list, result classification, optional rename target, and running counts.
+ */
 import { OpenAI } from 'openai';
 import { GptConversation } from '../gptApi/gptConversation.js';
 import { JSONSchemaFormat } from '../gptApi/jsonSchemaFormat.js';
 
-type ListItem = string | { name: string; description?: string };
+/**
+ * Item shape accepted by `compareItemLists` for semantic comparison.
+ *
+ * - A raw string is treated as the item's comparable name.
+ * - An object uses `name` as the comparable value and may include optional
+ *   `description` to provide additional LLM context.
+ */
+export type SemanticallyComparableListItem =
+  | string
+  | { name: string; description?: string };
+
+/**
+ * Final classification of an item during comparison.
+ */
+export enum ItemComparisonResult {
+  /** Item existed in "before" and is considered deleted in "after". */
+  Removed = 'removed',
+  /** Item exists in "after" and is considered newly introduced. */
+  Added = 'added',
+  /** Item from "before" was matched to a different name in "after". */
+  Renamed = 'renamed',
+  /** Item is treated as unchanged or unresolved for downstream purposes. */
+  Unchanged = 'unchanged',
+}
+
+/**
+ * Progress callback for per-item comparison lifecycle.
+ *
+ * @param item The concrete item currently being evaluated.
+ * @param isFromBeforeList `true` when the item comes from `listBefore`, `false` when
+ * it comes from `listAfter`.
+ * @param isStarting `true` when evaluation for this item begins, `false` when that
+ * evaluation completes.
+ * @param result Current/final classification for this callback event. For start events,
+ * this is a provisional value; for finish events, it is final for that item.
+ * @param newName The matched new name when `result` is `Renamed`; otherwise `undefined`.
+ * @param error Optional warning/error message for this event; `undefined` when none.
+ * @param totalProcessedSoFar Number of items fully processed so far.
+ * @param totalLeftToProcess Number of items remaining after this event.
+ */
+export type OnComparingItemCallback = (
+  item: SemanticallyComparableListItem,
+  isFromBeforeList: boolean,
+  isStarting: boolean,
+  result: ItemComparisonResult,
+  newName: string | undefined,
+  error: string | undefined,
+  totalProcessedSoFar: number,
+  totalLeftToProcess: number
+) => void;
 
 /**
  * Returns the comparable name for a list item.
  */
-const getItemName = (item: ListItem): string => {
+const getItemName = (item: SemanticallyComparableListItem): string => {
   return typeof item === 'string' ? item : item.name;
 };
 
@@ -16,7 +84,7 @@ const getItemName = (item: ListItem): string => {
  * Throws an error listing duplicates when the uniqueness precondition is violated.
  */
 const assertUniqueNamesInList = (
-  listToCheck: ListItem[],
+  listToCheck: SemanticallyComparableListItem[],
   listName: 'before' | 'after'
 ): void => {
   const seenNames = new Set<string>();
@@ -45,7 +113,7 @@ const assertUniqueNamesInList = (
 /**
  * Formats a list item for prompt inclusion, including optional description context.
  */
-const itemToPromptString = (item: ListItem): string => {
+const itemToPromptString = (item: SemanticallyComparableListItem): string => {
   if (typeof item === 'string') {
     return `- ${JSON.stringify(item)}`;
   } else {
@@ -63,7 +131,10 @@ const itemToPromptString = (item: ListItem): string => {
 /**
  * Sort comparator for list items by case-insensitive name.
  */
-const compareItemsByName = (a: ListItem, b: ListItem) => {
+const compareItemsByName = (
+  a: SemanticallyComparableListItem,
+  b: SemanticallyComparableListItem
+) => {
   const nameA = getItemName(a).toLowerCase();
   const nameB = getItemName(b).toLowerCase();
   return nameA.localeCompare(nameB);
@@ -85,9 +156,9 @@ const areNamesEquivalent = (a: string, b: string): boolean => {
  * Removes every item whose name matches the target (case-insensitive, JSON-tolerant).
  */
 const removeItemsByName = (
-  listToModify: ListItem[],
+  listToModify: SemanticallyComparableListItem[],
   itemNameToRemove: string
-): ListItem[] => {
+): SemanticallyComparableListItem[] => {
   itemNameToRemove = itemNameToRemove.trim().toLowerCase();
   return listToModify.filter((item) => {
     const name = getItemName(item).trim().toLowerCase();
@@ -121,13 +192,21 @@ export interface StringListComparison {
  * @param after - The list of strings/items after the changes.
  * @param explanation Optional explanation that provides context for the comparison, e.g.
  * a description of the items or the nature of the changes.
+ * @param onComparingItem Optional callback invoked at the start and end of each item
+ * evaluation. It receives the current item, whether it is from the "before" list,
+ * whether processing is starting (`true`) or finishing (`false`), the
+ * current/final classification, renamed target (if applicable), and
+ * optional warning/error message, and processed/remaining item counts.
+ * `totalProcessedSoFar` increases only when an item
+ * finishes; `totalLeftToProcess` is the number of items not yet finished.
  * @returns An object containing removed, added, renamed, and unchanged strings
  */
 export const compareItemLists = async (
   openaiClient: OpenAI,
-  listBefore: ListItem[],
-  listAfter: ListItem[],
-  explanation?: string
+  listBefore: SemanticallyComparableListItem[],
+  listAfter: SemanticallyComparableListItem[],
+  explanation?: string,
+  onComparingItem?: OnComparingItemCallback
 ): Promise<{
   removed: string[];
   added: string[];
@@ -220,14 +299,24 @@ ${explanation}
 ${listBefore.map(itemToPromptString).join('\n')}
 `);
 
+  // Counts used for onComparingItem telemetry across both loops.
+  let totalProcessedItems = 0;
+
   // First, go through each item in the "before" list, and submit it to the LLM
   // for presentation.
   for (let iItem = 0; iItem < listBefore.length; iItem++) {
-    console.log(
-      `  Processing item ${iItem + 1} of ${listBefore.length}: ` +
-        `${getItemName(listBefore[iItem])}`
-    );
     const itemBefore = listBefore[iItem];
+
+    onComparingItem?.(
+      itemBefore,
+      true,
+      true,
+      ItemComparisonResult.Unchanged,
+      undefined,
+      undefined,
+      totalProcessedItems,
+      listBefore.length - iItem + listAfter.length
+    );
 
     try {
       const convoIter = convo.clone();
@@ -293,17 +382,38 @@ please take them into account as you reason through the possibilities.
       if (!isItemDeleted && !isItemRenamed) {
         // Item is unchanged - shouldn't happen since we already filtered those out,
         // but just in case, we handle it.
-        console.warn(
+        const warningMessage =
           `LLM indicated item is neither renamed nor deleted, which should not happen. ` +
-            `Marking as unchanged: ${getItemName(itemBefore)}`
-        );
+          `Marking as unchanged: ${getItemName(itemBefore)}`;
         retval.unchanged.push(getItemName(itemBefore));
+        totalProcessedItems++;
+        onComparingItem?.(
+          itemBefore,
+          true,
+          false,
+          ItemComparisonResult.Unchanged,
+          undefined,
+          warningMessage,
+          totalProcessedItems,
+          listBefore.length - (iItem + 1) + listAfter.length
+        );
         continue;
       }
 
       if (isItemDeleted) {
         // This is the easy case - item was deleted.
         retval.removed.push(getItemName(itemBefore));
+        totalProcessedItems++;
+        onComparingItem?.(
+          itemBefore,
+          true,
+          false,
+          ItemComparisonResult.Removed,
+          undefined,
+          undefined,
+          totalProcessedItems,
+          listBefore.length - (iItem + 1) + listAfter.length
+        );
         continue;
       }
       if (isItemRenamed) {
@@ -313,11 +423,21 @@ please take them into account as you reason through the possibilities.
         if (!newNameAccordingToLLM) {
           // Invalid response - no new name provided.
           // Do not mark the item as removed. Mark it as unchanged.
-          console.warn(
+          const warningMessage =
             `LLM indicated item was renamed but did not provide a new name. ` +
-              `Skipping rename for item: ${getItemName(itemBefore)}`
-          );
+            `Skipping rename for item: ${getItemName(itemBefore)}`;
           retval.unchanged.push(getItemName(itemBefore));
+          totalProcessedItems++;
+          onComparingItem?.(
+            itemBefore,
+            true,
+            false,
+            ItemComparisonResult.Unchanged,
+            undefined,
+            warningMessage,
+            totalProcessedItems,
+            listBefore.length - (iItem + 1) + listAfter.length
+          );
           continue;
         }
         // Find the actual item in listAfter that matches this name.
@@ -335,13 +455,22 @@ please take them into account as you reason through the possibilities.
         if (!nameOfMatchedItem) {
           // Couldn't find a matching item in listAfter.
           // Do not mark the item as removed. Mark it as unchanged.
-          console.warn(
+          const warningMessage =
             `LLM indicated item was renamed to "${newNameAccordingToLLM}", ` +
-              `but no matching item was found in the "after" list. ` +
-              `Skipping rename for item: ${getItemName(itemBefore)}`
-          );
-          console.log();
+            `but no matching item was found in the "after" list. ` +
+            `Skipping rename for item: ${getItemName(itemBefore)}`;
           retval.unchanged.push(getItemName(itemBefore));
+          totalProcessedItems++;
+          onComparingItem?.(
+            itemBefore,
+            true,
+            false,
+            ItemComparisonResult.Unchanged,
+            undefined,
+            warningMessage,
+            totalProcessedItems,
+            listBefore.length - (iItem + 1) + listAfter.length
+          );
           continue;
         }
         // Valid rename.
@@ -349,31 +478,53 @@ please take them into account as you reason through the possibilities.
 
         // Remove the matched item from listAfter so it can't be matched again.
         listAfter = removeItemsByName(listAfter, nameOfMatchedItem);
+        totalProcessedItems++;
+        onComparingItem?.(
+          itemBefore,
+          true,
+          false,
+          ItemComparisonResult.Renamed,
+          nameOfMatchedItem,
+          undefined,
+          totalProcessedItems,
+          listBefore.length - (iItem + 1) + listAfter.length
+        );
       }
     } catch (error) {
-      console.warn(
-        `LLM processing failed for "before" item ${JSON.stringify(
-          getItemName(itemBefore)
-        )}; marking as unchanged.`,
-        error
-      );
+      const warningMessage = `LLM processing failed for "before" item ${JSON.stringify(
+        getItemName(itemBefore)
+      )}; marking as unchanged.`;
       retval.unchanged.push(getItemName(itemBefore));
+      totalProcessedItems++;
+      onComparingItem?.(
+        itemBefore,
+        true,
+        false,
+        ItemComparisonResult.Unchanged,
+        undefined,
+        warningMessage,
+        totalProcessedItems,
+        listBefore.length - (iItem + 1) + listAfter.length
+      );
       continue;
     }
   }
 
   // At this point, any remaining items in listAfter are probably added.
   // However, there could be additional instructions that indicate otherwise.
-  console.log(
-    `compareItemLists: Processing ${listAfter.length} items from "after" list...`
-  );
-  // TODO: Instead of console.log, send this to a logging callback.
   for (let iItem = 0; iItem < listAfter.length; iItem++) {
-    console.log(
-      `  Processing item ${iItem + 1} of ${listAfter.length}: ` +
-        `${getItemName(listAfter[iItem])}`
-    );
     const itemAfter = listAfter[iItem];
+
+    onComparingItem?.(
+      itemAfter,
+      false,
+      true,
+      ItemComparisonResult.Unchanged,
+      undefined,
+      undefined,
+      totalProcessedItems,
+      listAfter.length - iItem
+    );
 
     try {
       const convoIter = convo.clone();
@@ -412,13 +563,45 @@ this item?
       const isItemAdded = convoIter.getLastReplyDictField('is_added');
       if (isItemAdded) {
         retval.added.push(getItemName(itemAfter));
+        totalProcessedItems++;
+        onComparingItem?.(
+          itemAfter,
+          false,
+          false,
+          ItemComparisonResult.Added,
+          undefined,
+          undefined,
+          totalProcessedItems,
+          listAfter.length - (iItem + 1)
+        );
+        continue;
       }
+
+      totalProcessedItems++;
+      onComparingItem?.(
+        itemAfter,
+        false,
+        false,
+        ItemComparisonResult.Unchanged,
+        undefined,
+        undefined,
+        totalProcessedItems,
+        listAfter.length - (iItem + 1)
+      );
     } catch (error) {
-      console.warn(
-        `LLM processing failed for "after" item ${JSON.stringify(
-          getItemName(itemAfter)
-        )}; skipping add classification for this item.`,
-        error
+      const warningMessage = `LLM processing failed for "after" item ${JSON.stringify(
+        getItemName(itemAfter)
+      )}; skipping add classification for this item.`;
+      totalProcessedItems++;
+      onComparingItem?.(
+        itemAfter,
+        false,
+        false,
+        ItemComparisonResult.Unchanged,
+        undefined,
+        warningMessage,
+        totalProcessedItems,
+        listAfter.length - (iItem + 1)
       );
       continue;
     }
