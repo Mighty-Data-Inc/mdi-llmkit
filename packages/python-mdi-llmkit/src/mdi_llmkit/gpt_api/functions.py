@@ -40,6 +40,14 @@ class OpenAIClientLike(Protocol):
     def responses(self) -> _ResponsesAPI: ...
 
 
+def _mask_api_key_for_debug(value: Any) -> str:
+    if not isinstance(value, str) or not value:
+        return "<unavailable>"
+    if len(value) < 20:
+        return "***(short)***"
+    return f"{value[:12]}***{value[-5:]}"
+
+
 def current_datetime_system_message() -> Dict[str, str]:
     """Build a system message containing the current local date and time.
 
@@ -172,6 +180,13 @@ def gpt_submit(
         llmreply = ""
         try:
             # Attempt to get a response from the OpenAI API
+            client_api_key = getattr(openai_client, "api_key", None)
+            if not client_api_key:
+                client_api_key = getattr(openai_client, "_api_key", None)
+            print(
+                f"gpt_submit: OPENAI_API_KEY={_mask_api_key_for_debug(client_api_key)}",
+                flush=True,
+            )
             llmresponse = openai_client.responses.create(
                 model=model,
                 input=messages,

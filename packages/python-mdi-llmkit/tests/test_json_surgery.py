@@ -26,9 +26,9 @@ print(f"Loading .env from CWD={os.getcwd()}")
 
 
 def _mask_key(value: str) -> str:
-    if len(value) < 4:
-        return "***"
-    return f"{value[:12]}***{value[-4:]}"
+    if len(value) < 20:
+        return "***(short)***"
+    return f"{value[:12]}***{value[-5:]}"
 
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -43,7 +43,7 @@ if not OPENAI_API_KEY:
 print(f"OPENAI_API_KEY={_mask_key(OPENAI_API_KEY)}")
 
 
-def create_client():
+def create_client() -> OpenAI:
     return OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
 
 
