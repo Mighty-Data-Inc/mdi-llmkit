@@ -308,25 +308,25 @@ Structure of a Modification Operation:
 - **action**: The type of modification to perform. This can be one of the following values:
     - "delete": Delete the specified property or array element. (The "data" field is ignored,
         and should be set to null.) This "delete" action is functionally equivalent to
-        \`delete parent[key]\` for objects, or \`parent.splice(index, 1)\` for arrays.
+        `delete parent[key]` for objects, or `parent.splice(index, 1)` for arrays.
     - "assign": Set the property or element to a new value. If the parent is an array, then the
         "assign" action will replace the existing element at the specified index. If the parent
         is an object, then the "assign" action will set the value of the specified key, replacing
         any existing value for that key if it already exists, or creating a new key-value pair if
         the key does not already exist. This is functionally equivalent to:
-            \`parent[key] = data\` for objects, or
-            \`parent[index] = data\` for arrays.
+            `parent[key] = data` for objects, or
+            `parent[index] = data` for arrays.
     - "append": Applicable only when the parent object is an array. Append a new element to the
         end of the array. The "key_or_index" field is ignored. This is functionally equivalent to:
-            \`parent.push(data)\`.
+            `parent.push(data)`.
     - "insert": Applicable only when the parent object is an array. Insert a new element at the
         specified index in the array. This is functionally equivalent to:
-            \`parent.splice(index, 0, data)\`.
+            `parent.splice(index, 0, data)`.
     - "rename": Applicable only when the parent object is an object. Rename a property from the
         old key name (specified in "key_or_index") to a new key name. The "new_key_name" field
         (see below) *must* be provided. The "data" field is ignored for this action; you should
         just set it to null. This is functionally equivalent to:
-            \`parent[new_key_name] = parent[key_or_index]; delete parent[key_or_index]\`.
+            `parent[new_key_name] = parent[key_or_index]; delete parent[key_or_index]`.
 
 - **new_key_name**: Applicable only for the "rename" action. This field specifies the new key name
     to rename a property to. For all other actions, this field is ignored and should just be set
@@ -369,6 +369,7 @@ Structure of a Modification Operation:
         instead of a long series of inline_value assignments.
 """
     )
+    convo_base.add_developer_message("Alrighty then! Let's get to work!")
 
     operations_done_so_far: list[str] = []
     operation_last = "(nothing, we just started)"
@@ -453,127 +454,161 @@ Choose a different operation or strategy.
 
         convo.add_developer_message(
             """
-Determine what operation you'd like to perform at this point on this JSON object
-in order to alter it to get closer to the desired final state.
+Refer to the "Instructions for Modification Operations" section above for the
+structure of a modification operation.
 
-Feel free to deliberate and reason through your approach. Refer to the modification
-plan you drafted earlier, as needed.
+Based on the overall modification plan and the current state of the JSON object,
+determine and describe the next modifications to apply to the JSON object. Your
+output for now should just be plain English. Later, when I ask you to, you'll
+formalize it into a JSON object -- but for now, just talk your way through it.
 
-If all instructions are satisfied and the object actually already is in its desired
-final state, say so.
+If the modification instructions require multiple changes to the JSON object, you can describe
+multiple modifications to apply in this step. You can also break down a complex modification into
+a series of simpler modifications that can be applied incrementally, if that makes it easier to
+implement the overall modification instructions correctly. Just make sure to be very clear and
+detailed in describing your intended modifications, so that we can ensure that we're on the
+right track and that the modifications you propose are correctly implementing the modification
+instructions.
+
+If the modification instructions have already been fully satisfied and no further modifications
+are needed, then just say that we're done and don't propose any further modifications.
 """
         )
         convo.submit()
 
-        llm_reply_obj = call_llm_for_json(
-            openai_client,
-            {
-                "model": "gpt-4.1",
-                "input": messages,
-                "text": {
-                    "format": {
-                        "type": "json_schema",
-                        "name": "json_object_modifications",
-                        "description": "JSON formalization of next modifications.",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "modifications": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "json_path_of_parent": JSON_SCHEMA_JSON_PATH,
-                                            "key_or_index": {
-                                                "anyOf": [
-                                                    {"type": "string"},
-                                                    {"type": "number"},
-                                                ]
-                                            },
-                                            "action": {
-                                                "type": "string",
-                                                "enum": [
-                                                    "assign",
-                                                    "delete",
-                                                    "append",
-                                                    "insert",
-                                                    "rename",
-                                                ],
-                                            },
-                                            "new_key_name": {"type": "string"},
-                                            "data": {
-                                                "anyOf": [
-                                                    {
-                                                        "type": "null",
-                                                        "description": "Use null for delete and rename.",
-                                                    },
-                                                    {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "inline_value": JSON_SCHEMA_SET_VALUE,
-                                                        },
-                                                        "required": ["inline_value"],
-                                                        "additionalProperties": False,
-                                                    },
-                                                    {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "json_path_of_copy_source": JSON_SCHEMA_JSON_PATH,
-                                                        },
-                                                        "required": [
-                                                            "json_path_of_copy_source"
-                                                        ],
-                                                        "additionalProperties": False,
-                                                    },
-                                                ]
-                                            },
+        convo.submit(
+            json_response={
+                "format": {
+                    "type": "json_schema",
+                    "name": "json_object_modifications",
+                    "description": """
+A JSON formalization of the next set of modifications to apply to the JSON object,
+as we have just determined and described. If there are multiple modifications to apply,
+you can include all of them in this JSON object. If there are no modifications to apply
+because the modification instructions have already been fully satisfied, then set the
+"modifications" field to an empty list.
+""",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "modifications": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "json_path_of_parent": JSON_SCHEMA_JSON_PATH,
+                                        "key_or_index": {
+                                            "anyOf": [
+                                                {"type": "string"},
+                                                {"type": "number"},
+                                            ],
                                         },
-                                        "required": [
-                                            "json_path_of_parent",
-                                            "key_or_index",
-                                            "action",
-                                            "new_key_name",
-                                            "data",
-                                        ],
-                                        "additionalProperties": False,
+                                        "action": {
+                                            "type": "string",
+                                            "enum": [
+                                                "assign",
+                                                "delete",
+                                                "append",
+                                                "insert",
+                                                "rename",
+                                            ],
+                                        },
+                                        "new_key_name": {"type": "string"},
+                                        "data": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "null",
+                                                    "description": 'Data field should be null for "delete" and "rename" actions.',
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "inline_value": {
+                                                            **JSON_SCHEMA_SET_VALUE,
+                                                            "description": """
+The new value to set for "assign", "append", or "insert" actions.
+For "delete" and "rename" actions, this field is ignored and should be set to null.
+This can be one of the following:
+- A primitive value (string, number, boolean, null)
+- An empty object ({}).
+- An empty array ([]).
+- An array whose elements are all either primitive values or empty objects/arrays.
+- An object(*) whose values are all either primitive values or empty objects/arrays.
+(*) NOTE: Due to some limitations in our JSON schema processor, we cannot have you
+provide an object with arbitrary keys directly. Instead, please provide an array of
+key-value pair objects. I know it *looks like* an array, but we'll interpret it as
+an object.
+""",
+                                                        },
+                                                    },
+                                                    "required": ["inline_value"],
+                                                    "additionalProperties": False,
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "json_path_of_copy_source": JSON_SCHEMA_JSON_PATH,
+                                                    },
+                                                    "required": [
+                                                        "json_path_of_copy_source"
+                                                    ],
+                                                    "additionalProperties": False,
+                                                },
+                                            ],
+                                        },
                                     },
-                                }
+                                    "required": [
+                                        "json_path_of_parent",
+                                        "key_or_index",
+                                        "action",
+                                        "new_key_name",
+                                        "data",
+                                    ],
+                                    "additionalProperties": False,
+                                },
                             },
-                            "required": ["modifications"],
-                            "additionalProperties": False,
                         },
-                        "strict": True,
-                    }
+                        "required": ["modifications"],
+                        "additionalProperties": False,
+                    },
+                    "strict": True,
                 },
             },
         )
 
-        if not llm_reply_obj:
-            continue
-
-        modifications = llm_reply_obj.get("modifications")
+        modifications = convo.get_last_reply_dict_field("modifications")
         if not modifications:
             validation_errors: list[str] = []
             on_validate = options.get("on_validate_before_return")
             if on_validate:
-                validation_result = _run_callback(on_validate, _deep_copy_json(obj))
+                validation_result = on_validate(_deep_copy_json(obj))
                 if validation_result:
                     if "obj_corrected" in validation_result:
                         obj = validation_result["obj_corrected"]
                     if validation_result.get("errors"):
-                        validation_errors = validation_result["errors"]
+                        validation_errors = validation_result.get("errors", [])
 
             if not validation_errors:
                 return obj
 
             operation_last_was_successful = False
-            action_desc = (
-                "ERROR: Validation failure on attempted exit. "
-                f"Errors: {' | '.join(validation_errors)}"
-            )
+            action_desc = """
+ERROR: Validation failure on attempted exit.
+We thought we had finished processing, but the object didn't pass an automated
+validation check. This is often the result of undocumented requirements,
+and isn't necessarily because you did anything wrong. Nonetheless, these remaining
+issues must be addressed before we can consider the object valid.)
+
+The validator returned the following errors:                
+"""
+            for validation_error in validation_errors:
+                action_desc += f"- {validation_error}\n"
+
             operations_done_so_far.append(action_desc)
             operation_last = action_desc
-            operation_next = "Fix validation errors and try to exit again."
+            operation_next = (
+                "Fix these validation errors, and try to exit again when they're done."
+            )
             continue
 
         obj_modified = _deep_copy_json(obj)
@@ -641,105 +676,120 @@ final state, say so.
                 else:
                     raise ValueError(f"Unknown action: {action}")
 
-                messages.append(
-                    {
-                        "role": "system",
-                        "content": (
-                            "Applied modification successfully:\n"
-                            f"json_path_of_parent: {json.dumps(json_path_of_parent)}\n"
-                            f"key_or_index: {json.dumps(key_or_index)}\n"
-                            f"action: {json.dumps(action)}\n"
-                            f"new_key_name: {json.dumps(new_key_name)}\n"
-                            f"value: {json.dumps(value, indent=2)}"
-                        ),
-                    }
+                convo.add_system_message(
+                    f"""
+Applied modification successfully.
+json_path_of_parent: {json.dumps(json_path_of_parent)}
+key_or_index: {json.dumps(key_or_index)}
+action: {json.dumps(action)}
+new_key_name: {json.dumps(new_key_name)}
+data: {json.dumps(data, indent=2)}
+"""
                 )
             except Exception as error:
-                messages.append(
-                    {
-                        "role": "system",
-                        "content": (
-                            "Error while applying proposed modification:\n" f"{error}"
-                        ),
-                    }
+                convo.add_system_message(
+                    f"An error occurred while applying proposed modification:\n{error}"
                 )
 
-        messages.append(
-            {
-                "role": "user",
-                "content": (
-                    "Here is the JSON object after applying proposed modifications.\n\n---\n\n"
-                    f"{placemarked_json_stringify(obj_modified, 2, options.get('skipped_keys'))}"
-                ),
-            }
-        )
-        messages.append(
-            {
-                "role": "developer",
-                "content": (
-                    "Analyze whether applied changes are correct for this step, and whether "
-                    "they should be kept."
-                ),
-            }
+        convo.add_system_message(
+            f"""
+Here is the JSON object after applying proposed modifications.
+
+---
+
+
+{placemarked_json_stringify(obj_modified, 2, options.get('skipped_keys'))}
+"""
         )
 
-        llm_response = openai_client.responses.create(
-            model="gpt-4.1",
-            input=messages,
-        )
-        llm_reply = llm_response.output_text
-        messages.append({"role": "assistant", "content": llm_reply})
+        convo.add_developer_message(
+            """
+Examining the modified JSON object in its new state after the proposed modifications
+have been applied, let's discuss and analyze whether or not these modifications are
+correct, i.e. whether or not they properly move the object towards satisfying the
+modification instructions.
 
-        llm_reply_obj = call_llm_for_json(
-            openai_client,
-            {
-                "model": "gpt-4.1",
-                "input": messages,
-                "text": {
-                    "format": {
-                        "type": "json_schema",
-                        "name": "modification_verification",
-                        "description": "Formalized verification of proposed changes.",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "description_of_changes_intended": {"type": "string"},
-                                "description_of_changes_applied": {"type": "string"},
-                                "should_we_keep_these_changes": {"type": "boolean"},
-                                "reason_to_revert": {"type": "string"},
-                                "next_step": {"type": "string"},
-                            },
-                            "required": [
-                                "description_of_changes_intended",
-                                "description_of_changes_applied",
-                                "should_we_keep_these_changes",
-                                "reason_to_revert",
-                                "next_step",
-                            ],
-                            "additionalProperties": False,
+Specifically, check the following:
+
+- Does the modified JSON object now correctly contain the modifications you had intended?
+
+- Does the modified JSON object contain any unintended changes? This typically results from
+    one or more poorly structured modification objects, where json_path_of_parent point to
+    the wrong location in the JSON object.
+
+- Are the modifications *correct but incomplete*? In other words, were the modifications
+    that were applied correct in the sense that they were consistent with the modification
+    instructions, but they only represent one step in a multi-step process? If so, then this
+    is not a problem at all. We will continue to apply more modifications in subsequent
+    iterations.
+
+At the end of your analysis, write a conclusion. Your conclusion should be one of the
+following, or some variant thereof:
+
+- The changes are correct and complete for this step in the modification process.
+    We can keep them, and we can move on to the next step in the modification process.
+
+- The changes are correct but incomplete for this step in the modification process.
+    They are consistent with the modification instructions, but they only represent one step
+    in a multi-step process. This is not a problem at all. We will keep these changes,
+    and we will continue to apply more modifications in subsequent iterations,
+    to make further progress towards satisfying the modification instructions.
+
+- The changes are incorrect for this step in the modification process. They do not progress
+    us towards satisfying the modification instructions, and they may even break things and
+    take us further away from satisfying the modification instructions. We should reject these
+    changes, revert back to the previous version of the JSON object, and try a different
+    modification operation that is more likely to be correct.
+"""
+        )
+        convo.submit()
+
+        convo.submit(
+            json_response={
+                "format": {
+                    "type": "json_schema",
+                    "name": "modification_verification",
+                    "description": "Formalized verification of proposed changes.",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "description_of_changes_intended": {"type": "string"},
+                            "description_of_changes_applied": {"type": "string"},
+                            "should_we_keep_these_changes": {"type": "boolean"},
+                            "reason_to_revert": {"type": "string"},
+                            "next_step": {"type": "string"},
                         },
-                        "strict": True,
-                    }
-                },
+                        "required": [
+                            "description_of_changes_intended",
+                            "description_of_changes_applied",
+                            "should_we_keep_these_changes",
+                            "reason_to_revert",
+                            "next_step",
+                        ],
+                        "additionalProperties": False,
+                    },
+                    "strict": True,
+                }
             },
         )
-        messages.append({"role": "assistant", "content": json.dumps(llm_reply_obj)})
 
-        action_desc = f"DONE: {llm_reply_obj['description_of_changes_applied']}"
+        action_desc = (
+            f"DONE: {convo.get_last_reply_dict_field('description_of_changes_applied')}"
+        )
         operation_last_was_successful = True
 
-        if llm_reply_obj.get("should_we_keep_these_changes"):
+        if convo.get_last_reply_dict_field("should_we_keep_these_changes"):
             obj = obj_modified
         else:
             action_desc = (
-                f"FAILED: {llm_reply_obj['description_of_changes_intended']} "
-                f"Reason for failure: {llm_reply_obj['reason_to_revert']}"
+                f"FAILED: {convo.get_last_reply_dict_field('description_of_changes_intended')} "
+                f"Reason for failure: {convo.get_last_reply_dict_field('reason_to_revert')}"
             )
             operation_last_was_successful = False
 
         operations_done_so_far.append(action_desc)
         operation_last = action_desc
-        operation_next = llm_reply_obj["next_step"]
+        operation_next = convo.get_last_reply_dict_field("next_step")
 
 
 jsonSurgery = json_surgery

@@ -3,7 +3,6 @@ from .json_surgery import (
     JSONSurgeryOptions,
     json_surgery,
     navigate_to_json_path,
-    parse_json_from_ai_response,
     placemarked_json_stringify,
 )
 
@@ -12,6 +11,5 @@ __all__ = [
     "JSONSurgeryOptions",
     "json_surgery",
     "navigate_to_json_path",
-    "parse_json_from_ai_response",
     "placemarked_json_stringify",
 ]
