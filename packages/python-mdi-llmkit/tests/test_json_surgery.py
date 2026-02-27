@@ -34,7 +34,7 @@ if not OPENAI_API_KEY:
 
 def create_client():
     openai_module = importlib.import_module("openai")
-    return openai_module.OpenAI(api_key=OPENAI_API_KEY)
+    return openai_module.OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
 
 
 class JSONSurgeryLiveAPITests(unittest.TestCase):
