@@ -6,11 +6,7 @@ const GPT_RETRY_BACKOFF_TIME_SECONDS_DEFAULT = 30;
 
 export interface OpenAIClientLike {
   responses: {
-    create: (args: {
-      model: string;
-      input: unknown[];
-      text?: Record<string, unknown>;
-    }) => Promise<any> | any;
+    create: (args: any, options?: any) => Promise<any> | any;
   };
 }
 

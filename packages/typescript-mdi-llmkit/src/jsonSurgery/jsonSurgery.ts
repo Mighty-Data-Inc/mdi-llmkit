@@ -3,6 +3,7 @@ import {
   navigateToJSONPath,
   placemarkedJSONStringify,
 } from './placemarkedJSON.js';
+import { GptConversation } from '../gptApi/gptConversation.js';
 
 const JSON_SCHEMA_ANYOF_PRIMITIVE_OR_EMPTY = [
   {
@@ -144,91 +145,6 @@ const unpackValueFromSetValueSchema = (value: any): any => {
 };
 
 /**
- * OpenAI's API, even when called with a JSON schema, will often return text that is not
- * valid JSON. It's often because the model will add an entire extra object after the end
- * of its valid JSON response. E.g. instead of `{"foo":"bar"}`, it will sometimes return
- * `{"foo":"bar"}{"baz":"quux"}`. This function attempts to parse out the first valid JSON object
- * it can find with balanced curly braces.
- * NOTE: I've copied this function from gptHelpers.ts in order to make this file self-contained.
- * @param jsonText The text to parse
- * @returns The parsed JSON object, or null if parsing failed.
- */
-const parseJSONfromAIResponse = (jsonText: string): any => {
-  let depth = 0;
-  let start = -1;
-
-  for (let i = 0; i < jsonText.length; i++) {
-    const ch = jsonText[i];
-
-    if (ch === '{') {
-      if (depth === 0) start = i;
-      depth++;
-    } else if (ch === '}') {
-      depth--;
-      if (depth === 0 && start !== -1) {
-        const jsonTextBalancedCurlies = jsonText.slice(start, i + 1);
-        return JSON.parse(jsonTextBalancedCurlies);
-      }
-    }
-  }
-  return null;
-};
-
-/**
- * Calls the OpenAI API and returns the response as JSON. Retries up to numRetries times if
- * parsing fails due to invalid JSON.
- * @param openai_client The OpenAI client to use for the request
- * @param body The body of the OpenAI API request
- * @param numRetries The number of times to retry the request in case of failure
- * NOTE: I've copied this function from gptHelpers.ts in order to make this file self-contained.
- * @returns The JSON response from the OpenAI API
- */
-const callLLMforJSON = async (
-  openai_client: OpenAI,
-  body: OpenAI.Responses.ResponseCreateParamsNonStreaming,
-  numRetries?: number
-): Promise<any> => {
-  let ex = null;
-  if (!numRetries) {
-    numRetries = 5;
-  }
-
-  for (let i = 0; i < numRetries; i++) {
-    try {
-      const llmResponse = await openai_client.responses.create(body, {
-        // It really shouldn't take more than 10 seconds to get a response.
-        // If it's taking 30, then something is wrong.
-        timeout: 30000,
-      });
-
-      let llmReply = llmResponse.output_text;
-      let llmReplyObj = parseJSONfromAIResponse(llmReply);
-
-      return llmReplyObj;
-    } catch (error) {
-      ex = error;
-
-      // Check if the error is a syntax error,
-      // and its message contains "Unterminated string in JSON..."
-      if (
-        error instanceof SyntaxError &&
-        error.message.includes('Unterminated string in JSON')
-      ) {
-        console.warn(
-          `JSON parsing SyntaxError encountered. Retrying (${i + 1}/${numRetries})...`
-        );
-        continue; // Retry on this specific syntax error
-      }
-
-      // Other errors should not be retried
-      throw ex;
-    }
-  }
-
-  throw ex;
-};
-
-/**
  * Optional configuration for {@link jsonSurgery}.
  * @property schemaDescription Optional schema description for the JSON object. This can be written
  * in JSON Schema format, or as a textual explanation. It's passed as a string to the AI and has
@@ -295,16 +211,17 @@ export const jsonSurgery = async (
 ): Promise<any> => {
   options = options || {};
 
+  if (obj === null || obj === undefined) {
+    throw new TypeError('The provided object is null or undefined', obj);
+  }
+
   // DO NOT modify the originalObject in place.
   obj = JSON.parse(JSON.stringify(obj));
 
   const timeStarted = Date.now();
-  let numIterations = 0;
 
-  let messages = [
-    {
-      role: 'developer',
-      content: `
+  const convoBase = new GptConversation([], { openaiClient: openai_client });
+  convoBase.addDeveloperMessage(`
 You are an expert software developer AI assistant.
 The user will show you a JSON object and provide modification instructions.
 The modification instructions might not be entirely straightforward, so the
@@ -314,13 +231,10 @@ to satisfy the user's instructions.
 You will not be doing this alone. I will be holding your hand through the entire process,
 providing feedback and guidance after each modification. You will also be getting verification
 from the system itself, to ensure that your modifications are valid and correct.
-`,
-    },
-  ] as OpenAI.Responses.ResponseInput;
+`);
 
-  messages.push({
-    role: 'user',
-    content: `
+  convoBase.addUserMessage(`
+
 Here is the JSON object to modify, in its original state prior to any modifications.
 It has been formatted with placemarks (comments) to indicate the positions of elements for
 better readability and easier navigation.
@@ -328,13 +242,10 @@ better readability and easier navigation.
 ---
 
 ${placemarkedJSONStringify(obj, 2, options.skippedKeys)}
-`,
-  });
+`);
 
   if (options.schemaDescription) {
-    messages.push({
-      role: 'user',
-      content: `
+    convoBase.addUserMessage(`
 Here is the schema definition for the JSON object, so that you know the expected structure
 and data types of its properties. Make sure that your final results conform to this schema.
 DO NOT introduce any properties or values that violate this schema!
@@ -342,24 +253,19 @@ DO NOT introduce any properties or values that violate this schema!
 ---
 
 ${options.schemaDescription}
-`,
-    });
+`);
   }
 
-  messages.push({
-    role: 'user',
-    content: `
+  convoBase.addUserMessage(`
+
 Here are the modification instructions.
 
 ---
 
 ${modificationInstructions}
-`,
-  });
+`);
 
-  messages.push({
-    role: 'developer',
-    content: `
+  convoBase.addDeveloperMessage(`
 Before we begin, please provide a detailed plan outlining the specific steps you will take to
 implement the requested modifications to the JSON object. This plan should break down the
 modification instructions into a clear sequence of actions that you will perform, where each
@@ -367,19 +273,10 @@ action corresponds to a specific change in the JSON structure -- either the addi
 or updating of specific individual properties or values.
 
 Your response should start with "Modification Plan:" followed by the detailed plan.
-`,
-  });
-  let llmResponse = await openai_client.responses.create({
-    model: 'gpt-4.1',
-    input: messages,
-  });
-  let llmReply = llmResponse.output_text;
-  messages.push({ role: 'assistant', content: llmReply });
-  const modificationOverallPlan = llmReply;
+`);
+  await convoBase.submit();
 
-  messages.push({
-    role: 'system',
-    content: `
+  convoBase.addSystemMessage(`
 NAVIGATING THE JSON OBJECT AND JSON PATHS
 
 You have probably already noticed that the JSON object is annotated with placemarks
@@ -396,12 +293,9 @@ or an array index (number).
 
 Thus, the path to root["items"][0]["keywords"][1] would be represented as:
 json_path = ["items", 0, "keywords", 1]
-`,
-  });
+`);
 
-  messages.push({
-    role: 'system',
-    content: `
+  convoBase.addSystemMessage(`
 INSTRUCTIONS FOR MODIFICATION OPERATIONS
 
 You will be implementing the modification plan through a series of modification operations.
@@ -497,25 +391,21 @@ Structure of a Modification Operation:
         existing structures around within the JSON, by copying from one path and then deleting
         the original -- this makes moving a structure from one place to another a two-step process
         instead of a long series of inline_value assignments.
-`,
-  });
+`);
 
-  messages.push({
-    role: 'developer',
-    content: `Alrighty then. Let's get to work!`,
-  });
+  convoBase.addDeveloperMessage(`Alrighty then. Let's get to work!`);
 
-  const messagesBase = JSON.parse(JSON.stringify(messages));
   const operationsDoneSoFar: string[] = [];
   let operationLast = '(nothing, we just started)';
   let operationNext = '(nothing, we just started)';
   let operationLastWasSuccessful = true;
-  let isFirstIteration = true;
+  let numIterations = 0;
 
   while (true) {
-    messages = JSON.parse(JSON.stringify(messagesBase));
+    const convo = convoBase.clone();
 
-    if (!isFirstIteration) {
+    numIterations++;
+    if (numIterations > 1) {
       // If we have a work-in-progress callback, call it with the current state.
       if (options?.onWorkInProgress) {
         const objWipResult = await options.onWorkInProgress(
@@ -539,36 +429,36 @@ Structure of a Modification Operation:
         );
       }
 
-      numIterations++;
       if (
         options?.giveUpAfterIterations &&
         numIterations > options.giveUpAfterIterations
       ) {
         throw new JSONSurgeryError(
-          `Giving up after maximum iterations reached. ` +
-            `Iteration count: ${numIterations} ` +
-            `Maximum allowed: ${options.giveUpAfterIterations}`,
+          `Giving up after ${options.giveUpAfterIterations}. Maximum iterations reached. `,
           obj
         );
       }
 
-      messages.push({
-        role: 'user',
-        content: `
-STATUS: We've been working on this object modification task for ${secondsElapsed} seconds.
+      convo.addUserMessage(`
+CURRENT STATUS:
+We've been processing for ${secondsElapsed} seconds.
 We've performed ${operationsDoneSoFar.length} operations across ${numIterations - 1} iterations.
+`);
+      if (operationsDoneSoFar.length > 0) {
+        let msgOpsSoFar = ``;
+        for (let i = 0; i < operationsDoneSoFar.length; i++) {
+          msgOpsSoFar += `${i + 1}. ${operationsDoneSoFar[i]}\n`;
+        }
+        convo.addUserMessage(`
+Here are the operations that we've performed so far:
+${msgOpsSoFar}
+`);
+      }
 
-Here's what we've done so far:
-${
-  operationsDoneSoFar.map((op, idx) => `${idx + 1}. ${op}`).join('\n') ||
-  '(nothing; we just started)'
-}
-`,
-      });
-      messages.push({
+      convo.addUserMessage({
         role: 'user',
         content: `
-Here is the current state of the JSON object, after applying the modifications so far.
+Here is the JSON object in its current state, with our modifications up to this point applied.
 
 ---
 
@@ -576,10 +466,11 @@ ${placemarkedJSONStringify(obj, 2, options.skippedKeys)}
 `,
       });
 
-      messages.push({
+      convo.addUserMessage({
         role: 'user',
         content: `
-Here's the last thing we did:
+Just to help re-establish context from previous iterations, here is the last operation we
+performed on this JSON object:
 ${operationLast}
 
 Here's what we were planning to do next:
@@ -588,7 +479,7 @@ ${operationNext}
       });
 
       if (!operationLastWasSuccessful) {
-        messages.push({
+        convo.addDeveloperMessage({
           role: 'user',
           content: `
 !CRITICAL: The last operation we attempted FAILED! DO NOT DO THE SAME OPERATION AGAIN!
@@ -600,11 +491,8 @@ over and over again expecting a different result.
         });
       }
     }
-    isFirstIteration = false;
 
-    messages.push({
-      role: 'developer',
-      content: `
+    convo.addDeveloperMessage(`
 Refer to the "Instructions for Modification Operations" section above for the
 structure of a modification operation.
 
@@ -623,19 +511,11 @@ instructions.
 
 If the modification instructions have already been fully satisfied and no further modifications
 are needed, then just say that we're done and don't propose any further modifications.
-`,
-    });
-    llmResponse = await openai_client.responses.create({
-      model: 'gpt-4.1',
-      input: messages,
-    });
-    llmReply = llmResponse.output_text;
-    messages.push({ role: 'assistant', content: llmReply });
+`);
+    await convo.submit();
 
-    let llmReplyObj = await callLLMforJSON(openai_client, {
-      model: 'gpt-4.1',
-      input: messages,
-      text: {
+    await convo.submit(undefined, undefined, {
+      jsonResponse: {
         format: {
           type: 'json_schema',
           name: 'json_object_modifications',
@@ -723,13 +603,8 @@ an object.
         },
       },
     });
-    if (!llmReplyObj) {
-      console.warn(`Warning: Could not parse LLM reply as JSON. Retrying...`);
-      console.debug('LLM Reply:', llmReply);
-      continue;
-    }
 
-    const modifications = llmReplyObj.modifications;
+    const modifications = convo.getLastReplyDictField('modifications') as any[];
     if (!modifications || modifications.length === 0) {
       // No modifications proposed.
       // Presumably this means that all modification instructions have been fully satisfied.
@@ -880,9 +755,7 @@ The validator returned the following errors:
           throw new Error(`Unknown action: ${action}`);
         }
 
-        messages.push({
-          role: 'system',
-          content: `
+        convo.addSystemMessage(`
 The following modification was applied to the JSON object without any errors:
 
 json_path_of_parent: ${JSON.stringify(json_path_of_parent)}
@@ -890,33 +763,24 @@ key_or_index: ${JSON.stringify(key_or_index)}
 action: ${JSON.stringify(action)}
 new_key_name: ${JSON.stringify(new_key_name)}
 value: ${JSON.stringify(value, null, 2)}
-`,
-        });
+`);
       } catch (error) {
-        messages.push({
-          role: 'system',
-          content: `
+        convo.addSystemMessage(`
 An error occurred while attempting to apply the proposed modification:
 ${(error as Error).message}
-`,
-        });
+`);
       }
     }
 
     // Verify the modified object with the LLM
-    messages.push({
-      role: 'user',
-      content: `
+    convo.addUserMessage(`
 Here is the JSON object after applying the proposed modification.
 
 ---
 
 ${placemarkedJSONStringify(objModified, 2, options.skippedKeys)}
-`,
-    });
-    messages.push({
-      role: 'developer',
-      content: `
+`);
+    convo.addDeveloperMessage(`
 Examining the modified JSON object after the proposed modifications have been applied,
 let's discuss and analyze whether or not these modifications are correct, i.e. whether
 or not they properly implement the intended changes.
@@ -952,19 +816,11 @@ following, or some variant thereof:
     take us further away from satisfying the modification instructions. We should reject these
     changes, revert back to the previous version of the JSON object, and try a different
     modification operation that is more likely to be correct.
-`,
-    });
-    llmResponse = await openai_client.responses.create({
-      model: 'gpt-4.1',
-      input: messages,
-    });
-    llmReply = llmResponse.output_text;
-    messages.push({ role: 'assistant', content: llmReply });
+`);
+    await convo.submit();
 
-    llmReplyObj = await callLLMforJSON(openai_client, {
-      model: 'gpt-4.1',
-      input: messages,
-      text: {
+    await convo.submit(undefined, undefined, {
+      jsonResponse: {
         format: {
           type: 'json_schema',
           name: 'modification_verification',
@@ -1009,23 +865,22 @@ to the JSON object, as we have just discussed and analyzed.
         },
       },
     });
-    messages.push({ role: 'assistant', content: JSON.stringify(llmReplyObj) });
 
-    let actionDesc = `DONE: ${llmReplyObj.description_of_changes_applied}`;
+    let actionDesc = `DONE: ${convo.getLastReplyDictField('description_of_changes_applied')}`;
     operationLastWasSuccessful = true;
 
-    if (llmReplyObj.should_we_keep_these_changes) {
+    if (convo.getLastReplyDictField('should_we_keep_these_changes')) {
       // Accept the modification
       obj = objModified;
     } else {
       // Reject the modification
       actionDesc =
-        `FAILED: ${llmReplyObj.description_of_changes_intended}` +
-        ` Reason for failure: ${llmReplyObj.reason_to_revert}`;
+        `FAILED: ${convo.getLastReplyDictField('description_of_changes_intended')}` +
+        ` Reason for failure: ${convo.getLastReplyDictField('reason_to_revert')}`;
       operationLastWasSuccessful = false;
     }
     operationsDoneSoFar.push(actionDesc);
     operationLast = actionDesc;
-    operationNext = llmReplyObj.next_step;
+    operationNext = `${convo.getLastReplyDictField('next_step')}`;
   }
 };
