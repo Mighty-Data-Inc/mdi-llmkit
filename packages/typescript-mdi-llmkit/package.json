@@ -1,6 +1,6 @@
 {
   "name": "mdi-llmkit",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "description": "Utilities for managing multi-shot conversations and structured data handling in LLM applications",
   "author": "Mikhail Voloshin",
   "license": "MIT",

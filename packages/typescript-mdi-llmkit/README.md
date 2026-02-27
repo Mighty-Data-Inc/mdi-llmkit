@@ -185,6 +185,6 @@ console.log(result);
   - Runs on push to `main` and on pull requests when TypeScript package files change.
   - Executes `npm ci`, `npm test`, and `npm run build` in `packages/typescript-mdi-llmkit`.
 - Release workflow: `.github/workflows/typescript-release.yml`
-  - Runs on tags matching `typescript-v*` (for example: `typescript-v0.1.0`).
+  - Runs on tags matching `typescript-v*` (for example: `typescript-v1.0.1`).
   - Requires repository secret `NPM_TOKEN` with publish permission to npm.
   - Executes tests/build before `npm publish --access public --provenance`.

@@ -36,3 +36,52 @@ python -m unittest tests/test_json_surgery.py
 ```
 
 For fuller Python package usage and examples, see [packages/python-mdi-llmkit/README.md](packages/python-mdi-llmkit/README.md).
+
+## Release process
+
+This repo ships two public packages with aligned versions:
+
+- npm: `mdi-llmkit` from `packages/typescript-mdi-llmkit`
+- PyPI: `mdi-llmkit` from `packages/python-mdi-llmkit`
+
+Before publishing:
+
+- Ensure both versions are updated (`package.json` and `pyproject.toml`).
+- Authenticate once locally:
+	- npm: `npm login`
+	- PyPI: `python -m twine upload --repository pypi dist/*` (token prompt) or configure `~/.pypirc`
+
+Optional manual preflight check (also run automatically by release scripts):
+
+```powershell
+.\scripts\release-preflight.ps1
+```
+
+From repo root, use the release scripts:
+
+```powershell
+.\scripts\release-typescript.ps1
+```
+
+```powershell
+.\scripts\release-python.ps1
+```
+
+Or publish both, TypeScript first then Python:
+
+```powershell
+.\scripts\release-all.ps1
+```
+
+Each script has built-in PowerShell help:
+
+```powershell
+Get-Help .\scripts\release-all.ps1 -Full
+```
+
+After publish, tag and push a release tag (example):
+
+```powershell
+git tag v1.0.1
+git push origin v1.0.1
+```
