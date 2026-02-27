@@ -36,88 +36,39 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * OpenAI's API, even when called with a JSON schema, will often return text that is not
+ * valid JSON. It's often because the model will add extra text after the end of its valid
+ * JSON response. E.g. instead of `{"foo":"bar"}`, it will sometimes return
+ * `{"foo":"bar"}{"baz":"quux"}`.
+ *
+ * We intentionally do not implement a custom JSON parser here. Instead:
+ * 1) Try to parse the full text first (fast path, most responses).
+ * 2) If that fails, scan prefixes from start to end and let JSON.parse decide validity.
+ *
+ * This keeps JSON semantics delegated to the platform parser while still recovering from
+ * trailing junk in model output.
+ *
+ * @param input The text to parse.
+ * @returns The first valid JSON value found at the start of the input text.
+ * @throws {SyntaxError} If no valid JSON prefix exists.
+ */
 function parseFirstJsonValue(input: string): any {
   const text = input.trimStart();
   if (!text) {
     throw new SyntaxError("Unexpected end of JSON input");
   }
 
-  const first = text[0];
-
-  if (first === "{" || first === "[") {
-    const closing = first === "{" ? "}" : "]";
-    let depth = 0;
-    let inString = false;
-    let escaped = false;
-
-    for (let index = 0; index < text.length; index += 1) {
-      const char = text[index];
-
-      if (inString) {
-        if (escaped) {
-          escaped = false;
-          continue;
-        }
-        if (char === "\\") {
-          escaped = true;
-          continue;
-        }
-        if (char === '"') {
-          inString = false;
-        }
-        continue;
-      }
-
-      if (char === '"') {
-        inString = true;
-        continue;
-      }
-
-      if (char === first) {
-        depth += 1;
-      } else if (char === closing) {
-        depth -= 1;
-        if (depth === 0) {
-          return JSON.parse(text.slice(0, index + 1));
-        }
+  try {
+    return JSON.parse(text);
+  } catch {
+    for (let end = 1; end <= text.length; end += 1) {
+      try {
+        return JSON.parse(text.slice(0, end));
+      } catch {
+        // Keep scanning until we find a valid JSON prefix.
       }
     }
-
-    throw new SyntaxError("Unexpected end of JSON input");
-  }
-
-  if (first === '"') {
-    let escaped = false;
-    for (let index = 1; index < text.length; index += 1) {
-      const char = text[index];
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-      if (char === "\\") {
-        escaped = true;
-        continue;
-      }
-      if (char === '"') {
-        return JSON.parse(text.slice(0, index + 1));
-      }
-    }
-    throw new SyntaxError("Unexpected end of JSON input");
-  }
-
-  if (text.startsWith("true")) {
-    return true;
-  }
-  if (text.startsWith("false")) {
-    return false;
-  }
-  if (text.startsWith("null")) {
-    return null;
-  }
-
-  const numberMatch = text.match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/);
-  if (numberMatch) {
-    return JSON.parse(numberMatch[0]);
   }
 
   throw new SyntaxError("Unexpected token in JSON input");
