@@ -21,8 +21,8 @@ from mdi_llmkit.json_surgery import (
 )
 
 
-load_dotenv()
 print(f"Loading .env from CWD={os.getcwd()}")
+load_dotenv()
 
 
 def _mask_key(value: str) -> str:
@@ -44,6 +44,7 @@ print(f"OPENAI_API_KEY={_mask_key(OPENAI_API_KEY)}")
 
 
 def create_client() -> OpenAI:
+    print("CALLING create_client()")
     openai_client = OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
     print(
         f"Upon creation, client api_key={_mask_key(getattr(openai_client, 'api_key', None) or 'NO_KEY_FIELD_AVAILABLE')}"

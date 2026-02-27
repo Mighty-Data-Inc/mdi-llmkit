@@ -187,6 +187,7 @@ def json_surgery(
 
     time_started = time.time()
 
+    print("INVOKING GptConversation in json_surgery")
     convo_base = GptConversation(openai_client=openai_client)
     convo_base.add_developer_message(
         """
