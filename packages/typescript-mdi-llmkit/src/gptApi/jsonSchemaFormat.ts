@@ -3,7 +3,7 @@ export const JSON_NUMBER = Symbol('JSON_NUMBER');
 export const JSON_STRING = String;
 export const JSON_BOOLEAN = Boolean;
 
-export interface JSONSchemaFormatResult {
+export interface JSONSchemaFormatResult extends Record<string, unknown> {
   format: {
     type: 'json_schema';
     strict: true;
