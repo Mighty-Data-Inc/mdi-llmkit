@@ -97,7 +97,11 @@ def gpt_submit(
         typically a ``dict`` or ``list``.
 
     Raises:
-        openai.OpenAIError: When API errors persist through all retries.
+        openai.AuthenticationError: Immediately, without retrying, when the API
+            key is missing or invalid.
+        openai.PermissionDeniedError: Immediately, without retrying, when the
+            request is forbidden.
+        openai.OpenAIError: When other API errors persist through all retries.
         json.JSONDecodeError: When JSON parsing fails through all retries in
             JSON mode, or when ``json_response`` is an invalid JSON string.
         ValueError: If no attempt runs or no terminal failure is captured.
@@ -196,6 +200,13 @@ def gpt_submit(
             llmobj: Union[dict, list] = llmobj
             return llmobj
         except openai.OpenAIError as e:
+            # Non-retryable errors (e.g. bad API key, permission denied) should
+            # propagate immediately — retrying with a backoff would only waste
+            # time and obscure the real problem.
+            if isinstance(
+                e, (openai.AuthenticationError, openai.PermissionDeniedError)
+            ):
+                raise
             efail = e
             if warning_callback:
                 warning_callback(

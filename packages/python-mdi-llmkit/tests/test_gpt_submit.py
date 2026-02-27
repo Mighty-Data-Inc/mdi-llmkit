@@ -3,7 +3,7 @@ import unittest
 import json
 from pathlib import Path
 from typing import Any, List, Optional
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import openai
 from openai._types import omit
@@ -259,6 +259,36 @@ class TestRetryBehavior(GPTSubmitFrameworkBase):
 
         with self.assertRaises(ValueError):
             self.call_submit(client, retry_limit=0)
+
+    def test_authentication_error_is_raised_immediately_without_retry(self):
+        mock_response = MagicMock()
+        mock_response.request = MagicMock()
+        auth_error = openai.AuthenticationError(
+            "invalid API key", response=mock_response, body=None
+        )
+        client = self.make_client(auth_error)
+
+        with patch("mdi_llmkit.gpt_api.functions.time.sleep") as mock_sleep:
+            with self.assertRaises(openai.AuthenticationError):
+                self.call_submit(client, retry_limit=5, retry_backoff_time_seconds=30)
+
+        self.assertEqual(len(client.responses.create_calls), 1)
+        mock_sleep.assert_not_called()
+
+    def test_permission_denied_error_is_raised_immediately_without_retry(self):
+        mock_response = MagicMock()
+        mock_response.request = MagicMock()
+        perm_error = openai.PermissionDeniedError(
+            "permission denied", response=mock_response, body=None
+        )
+        client = self.make_client(perm_error)
+
+        with patch("mdi_llmkit.gpt_api.functions.time.sleep") as mock_sleep:
+            with self.assertRaises(openai.PermissionDeniedError):
+                self.call_submit(client, retry_limit=5, retry_backoff_time_seconds=30)
+
+        self.assertEqual(len(client.responses.create_calls), 1)
+        mock_sleep.assert_not_called()
 
 
 class TestJsonModes(GPTSubmitFrameworkBase):
