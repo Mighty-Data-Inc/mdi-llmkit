@@ -7,8 +7,7 @@ import {
   type SemanticallyComparableListItem,
 } from '../../src/comparison/compareLists.js';
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY?.trim();
 if (!OPENAI_API_KEY) {
   throw new Error(
     'OPENAI_API_KEY is required for compareItemLists live API tests. Configure your test environment to provide it.'

@@ -40,14 +40,6 @@ class OpenAIClientLike(Protocol):
     def responses(self) -> _ResponsesAPI: ...
 
 
-def _mask_api_key_for_debug(value: Any) -> str:
-    if not isinstance(value, str) or not value:
-        return "<unavailable>"
-    if len(value) < 20:
-        return "***(short)***"
-    return f"{value[:12]}***{value[-5:]}"
-
-
 def current_datetime_system_message() -> Dict[str, str]:
     """Build a system message containing the current local date and time.
 
@@ -180,27 +172,6 @@ def gpt_submit(
         llmreply = ""
         try:
             # Attempt to get a response from the OpenAI API
-            client_api_key = getattr(openai_client, "api_key", None)
-            if not client_api_key:
-                client_api_key = getattr(openai_client, "_api_key", None)
-            key_len = len(client_api_key) if isinstance(client_api_key, str) else -1
-            has_cr = isinstance(client_api_key, str) and "\r" in client_api_key
-            has_lf = isinstance(client_api_key, str) and "\n" in client_api_key
-            has_non_printable = isinstance(client_api_key, str) and any(
-                (ord(character) < 32 and character not in ("\r", "\n", "\t"))
-                or ord(character) == 127
-                for character in client_api_key
-            )
-            has_bom = isinstance(client_api_key, str) and client_api_key.startswith(
-                "\ufeff"
-            )
-            print(
-                "gpt_submit: "
-                f"OPENAI_API_KEY={_mask_api_key_for_debug(client_api_key)} "
-                f"len={key_len} has_cr={has_cr} has_lf={has_lf} "
-                f"has_non_printable={has_non_printable} has_bom={has_bom}",
-                flush=True,
-            )
             llmresponse = openai_client.responses.create(
                 model=model,
                 input=messages,
