@@ -443,7 +443,7 @@ ${operation_next}
             )
 
             if not operation_last_was_successful:
-                convo.append(
+                convo.add_developer_message(
                     """
 CRITICAL NOTE: The last operation we had performed on this JSON object failed.
 Do not repeat this exact operation -- operations are deterministic, so if it failed before
