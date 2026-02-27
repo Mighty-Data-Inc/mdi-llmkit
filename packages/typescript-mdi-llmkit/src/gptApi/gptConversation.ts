@@ -1,4 +1,8 @@
-import { GPT_MODEL_SMART, gptSubmit, type OpenAIClientLike } from "./functions.js";
+import {
+  GPT_MODEL_SMART,
+  gptSubmit,
+  type OpenAIClientLike,
+} from './functions.js';
 
 export interface ConversationMessage {
   role: string;
@@ -16,7 +20,7 @@ export interface SubmitOptions {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export class GptConversation extends Array<ConversationMessage> {
@@ -52,7 +56,10 @@ export class GptConversation extends Array<ConversationMessage> {
     this.#lastReply = value;
   }
 
-  constructor(messages: ConversationMessage[] = [], options: GptConversationOptions = {}) {
+  constructor(
+    messages: ConversationMessage[] = [],
+    options: GptConversationOptions = {}
+  ) {
     super(...messages);
     this.#openaiClient = options.openaiClient;
     this.#model = options.model;
@@ -75,11 +82,13 @@ export class GptConversation extends Array<ConversationMessage> {
 
   async submit(
     message?: string | Record<string, unknown>,
-    role: string | null = "user",
-    options: SubmitOptions = {},
+    role: string | null = 'user',
+    options: SubmitOptions = {}
   ): Promise<unknown> {
     if (!this.openaiClient) {
-      throw new Error("OpenAI client is not set. Please provide an OpenAI client.");
+      throw new Error(
+        'OpenAI client is not set. Please provide an OpenAI client.'
+      );
     }
 
     const model = options.model || this.model || GPT_MODEL_SMART;
@@ -87,20 +96,20 @@ export class GptConversation extends Array<ConversationMessage> {
 
     if (message) {
       if (isRecord(message)) {
-        if (!jsonResponse && "format" in message) {
+        if (!jsonResponse && 'format' in message) {
           jsonResponse = message;
         }
 
-        if (!role && typeof message.role === "string") {
+        if (!role && typeof message.role === 'string') {
           role = message.role;
         }
 
-        if ("content" in message) {
-          message = String(message.content ?? "");
+        if ('content' in message) {
+          message = String(message.content ?? '');
         }
       }
 
-      this.addMessage(role || "user", message);
+      this.addMessage(role || 'user', message);
     }
 
     const llmReply = await gptSubmit(this.toDictList(), this.openaiClient, {
@@ -115,7 +124,7 @@ export class GptConversation extends Array<ConversationMessage> {
 
   addMessage(role: string, content: unknown): this {
     let normalizedContent: string;
-    if (typeof content === "string") {
+    if (typeof content === 'string') {
       normalizedContent = content;
     } else if (isRecord(content)) {
       normalizedContent = JSON.stringify(content, null, 2);
@@ -128,19 +137,19 @@ export class GptConversation extends Array<ConversationMessage> {
   }
 
   addUserMessage(content: unknown): this {
-    return this.addMessage("user", content);
+    return this.addMessage('user', content);
   }
 
   addAssistantMessage(content: unknown): this {
-    return this.addMessage("assistant", content);
+    return this.addMessage('assistant', content);
   }
 
   addSystemMessage(content: unknown): this {
-    return this.addMessage("system", content);
+    return this.addMessage('system', content);
   }
 
   addDeveloperMessage(content: unknown): this {
-    return this.addMessage("developer", content);
+    return this.addMessage('developer', content);
   }
 
   async submitMessage(role: string, content: unknown): Promise<unknown> {
@@ -177,7 +186,7 @@ export class GptConversation extends Array<ConversationMessage> {
   }
 
   getLastReplyStr(): string {
-    return typeof this.lastReply === "string" ? this.lastReply : "";
+    return typeof this.lastReply === 'string' ? this.lastReply : '';
   }
 
   getLastReplyDict(): Record<string, unknown> {
@@ -188,7 +197,10 @@ export class GptConversation extends Array<ConversationMessage> {
     return JSON.parse(JSON.stringify(this.lastReply));
   }
 
-  getLastReplyDictField(fieldName: string, defaultValue: unknown = null): unknown {
+  getLastReplyDictField(
+    fieldName: string,
+    defaultValue: unknown = null
+  ): unknown {
     if (!isRecord(this.lastReply)) {
       return null;
     }
