@@ -24,12 +24,20 @@ dotenv_module.load_dotenv(ROOT / ".env", override=False)
 dotenv_module.load_dotenv(ROOT.parent.parent / ".env", override=False)
 
 
+def _mask_key(value: str) -> str:
+    if len(value) < 4:
+        return "***"
+    return f"{value[:12]}***{value[-4:]}"
+
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
+    print("OPENAI_API_KEY=<missing>")
     raise RuntimeError(
         "OPENAI_API_KEY is required for json_surgery live API tests. "
         "Configure your test environment to provide it."
     )
+print(f"OPENAI_API_KEY={_mask_key(OPENAI_API_KEY)}")
 
 
 def create_client():
