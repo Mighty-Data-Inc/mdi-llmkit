@@ -1,10 +1,12 @@
 import os
 import sys
 import unittest
-import importlib
 import time
 from pathlib import Path
 from typing import cast
+
+from dotenv import load_dotenv
+from openai import OpenAI
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,9 +21,8 @@ from mdi_llmkit.json_surgery import (
 )
 
 
-dotenv_module = importlib.import_module("dotenv")
-dotenv_module.load_dotenv(ROOT / ".env", override=False)
-dotenv_module.load_dotenv(ROOT.parent.parent / ".env", override=False)
+load_dotenv()
+print(f"Loading .env from CWD={os.getcwd()}")
 
 
 def _mask_key(value: str) -> str:
@@ -31,6 +32,8 @@ def _mask_key(value: str) -> str:
 
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# Keep this masked print for CI debugging so we can verify what key shape is
+# actually visible to the Python test process without exposing the full secret.
 if not OPENAI_API_KEY:
     print("OPENAI_API_KEY=<missing>")
     raise RuntimeError(
@@ -41,8 +44,7 @@ print(f"OPENAI_API_KEY={_mask_key(OPENAI_API_KEY)}")
 
 
 def create_client():
-    openai_module = importlib.import_module("openai")
-    return openai_module.OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
+    return OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
 
 
 class JSONSurgeryLiveAPITests(unittest.TestCase):
