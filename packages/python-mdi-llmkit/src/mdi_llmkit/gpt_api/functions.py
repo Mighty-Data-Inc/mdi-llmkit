@@ -16,6 +16,8 @@ import json
 import openai
 import time
 
+import httpx
+
 from typing import Any, Callable, Protocol, cast, Dict, List, Optional, Tuple, Union
 
 from openai._types import Omit, omit
@@ -200,11 +202,17 @@ def gpt_submit(
             llmobj: Union[dict, list] = llmobj
             return llmobj
         except openai.OpenAIError as e:
-            # Non-retryable errors (e.g. bad API key, permission denied) should
-            # propagate immediately — retrying with a backoff would only waste
-            # time and obscure the real problem.
+            # Non-retryable errors should propagate immediately — retrying
+            # with a backoff would only waste time and obscure the problem.
             if isinstance(
                 e, (openai.AuthenticationError, openai.PermissionDeniedError)
+            ):
+                raise
+            # A local protocol error (e.g. illegal header value caused by a
+            # malformed API key) means the request can't be sent at all.
+            # It will fail identically on every retry.
+            if isinstance(e, openai.APIConnectionError) and isinstance(
+                e.__cause__, httpx.LocalProtocolError
             ):
                 raise
             efail = e

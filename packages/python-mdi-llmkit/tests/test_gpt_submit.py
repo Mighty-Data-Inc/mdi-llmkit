@@ -6,6 +6,7 @@ from typing import Any, List, Optional
 from unittest.mock import MagicMock, patch
 
 import openai
+import httpx
 from openai._types import omit
 
 
@@ -285,6 +286,21 @@ class TestRetryBehavior(GPTSubmitFrameworkBase):
 
         with patch("mdi_llmkit.gpt_api.functions.time.sleep") as mock_sleep:
             with self.assertRaises(openai.PermissionDeniedError):
+                self.call_submit(client, retry_limit=5, retry_backoff_time_seconds=30)
+
+        self.assertEqual(len(client.responses.create_calls), 1)
+        mock_sleep.assert_not_called()
+
+    def test_local_protocol_error_connection_error_is_raised_immediately_without_retry(
+        self,
+    ):
+        local_proto_exc = httpx.LocalProtocolError("Illegal header value b'***'")
+        conn_error = openai.APIConnectionError(request=MagicMock())
+        conn_error.__cause__ = local_proto_exc
+        client = self.make_client(conn_error)
+
+        with patch("mdi_llmkit.gpt_api.functions.time.sleep") as mock_sleep:
+            with self.assertRaises(openai.APIConnectionError):
                 self.call_submit(client, retry_limit=5, retry_backoff_time_seconds=30)
 
         self.assertEqual(len(client.responses.create_calls), 1)
