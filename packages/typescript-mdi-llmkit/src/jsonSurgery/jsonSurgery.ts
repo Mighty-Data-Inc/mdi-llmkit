@@ -1,3 +1,28 @@
+/**
+ * `jsonSurgery` performs iterative, AI-guided edits to a JSON-compatible object.
+ *
+ * The module exposes:
+ * - {@link jsonSurgery}: the main entry point that applies requested modifications.
+ * - {@link JSONSurgeryOptions}: callbacks and limits for validation, progress, and retries.
+ * - {@link JSONSurgeryError}: enriched error type that includes the last object state.
+ *
+ * High-level flow:
+ * 1. Deep-copy the input object (the original is never mutated).
+ * 2. Send the current object state plus user instructions to the model.
+ * 3. Receive one or more structured operations targeting JSON paths.
+ * 4. Apply operations and continue iteratively until validation succeeds.
+ *
+ * Supported operation types include assign, append, insert, delete, and rename.
+ * Values are transferred through constrained JSON schemas so the model can express
+ * primitives, objects, and arrays safely in a structured format.
+ *
+ * Callers can provide:
+ * - `schemaDescription` to describe expected object shape/constraints,
+ * - `skippedKeys` to hide sensitive or noisy fields from model context,
+ * - `onValidateBeforeReturn` to enforce app-specific validation,
+ * - `onWorkInProgress` for per-iteration monitoring/intervention,
+ * - `giveUpAfterSeconds` / `giveUpAfterIterations` as soft stop conditions.
+ */
 import { OpenAI } from 'openai';
 import {
   navigateToJSONPath,

@@ -63,6 +63,19 @@ const result = await gptSubmit(
 );
 ```
 
+## `jsonSurgery`
+
+`jsonSurgery` applies iterative, model-guided edits to a JSON-compatible object using
+structured JSON-path operations (`assign`, `append`, `insert`, `delete`, `rename`).
+
+```ts
+import { jsonSurgery } from "mdi-llmkit/jsonSurgery";
+```
+
+- It deep-copies the input object and returns the modified copy.
+- It supports optional schema guidance and key-skipping for model-visible context.
+- It supports validation/progress callbacks and soft iteration/time limits.
+
 ## JSON Response Mode
 
 ```ts
@@ -83,6 +96,7 @@ console.log(result);
 ## Notes
 
 - Current TypeScript parity slices include `gptSubmit`, `GptConversation`, and `JSONSchemaFormat`.
+- You can import GPT API symbols via subpath imports, e.g. `import { GptConversation } from "mdi-llmkit/gptApi"`.
 - Integer schemas can be expressed with `JSON_INTEGER`; numeric (float-capable) schemas can use `JSON_NUMBER`.
 
 ## Migration from Python
