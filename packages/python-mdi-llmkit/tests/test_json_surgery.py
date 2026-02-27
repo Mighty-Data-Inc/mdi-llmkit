@@ -44,7 +44,11 @@ print(f"OPENAI_API_KEY={_mask_key(OPENAI_API_KEY)}")
 
 
 def create_client() -> OpenAI:
-    return OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
+    openai_client = OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
+    print(
+        f"Upon creation, client api_key={_mask_key(getattr(openai_client, 'api_key', None) or 'NO_KEY_FIELD_AVAILABLE')}"
+    )
+    return openai_client
 
 
 class JSONSurgeryLiveAPITests(unittest.TestCase):
