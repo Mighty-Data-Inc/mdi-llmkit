@@ -10,11 +10,18 @@ pip install mdi-llmkit
 
 ## Quick Start
 
+Preferred subpackage imports:
+
+```python
+from mdi_llmkit.gpt_api import GptConversation
+from mdi_llmkit.json_surgery import json_surgery
+```
+
 ### `gpt_submit`
 
 ```python
 from openai import OpenAI
-from mdi_llmkit.gpt_api.functions import gpt_submit
+from mdi_llmkit.gpt_api import gpt_submit
 
 client = OpenAI()
 
@@ -29,7 +36,7 @@ print(reply)
 
 ```python
 from openai import OpenAI
-from mdi_llmkit.gpt_api.gpt_conversation import GptConversation
+from mdi_llmkit.gpt_api import GptConversation
 
 client = OpenAI()
 conversation = GptConversation(openai_client=client)
@@ -42,7 +49,7 @@ print(reply)
 
 ```python
 from openai import OpenAI
-from mdi_llmkit.gpt_api.functions import gpt_submit
+from mdi_llmkit.gpt_api import gpt_submit
 
 client = OpenAI()
 
@@ -60,7 +67,7 @@ print(result)
 
 ```python
 from openai import OpenAI
-from mdi_llmkit.json_surgery.json_surgery import json_surgery
+from mdi_llmkit.json_surgery import json_surgery
 
 client = OpenAI()
 

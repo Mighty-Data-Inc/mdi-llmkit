@@ -12,6 +12,13 @@ This repo contains shared, production-focused helpers we use at **Mighty Data In
 
 This is not a framework — just a clean, reusable toolkit for the parts of LLM integration that tend to get copy-pasted everywhere.
 
+## Preferred Python imports
+
+```python
+from mdi_llmkit.gpt_api import GptConversation
+from mdi_llmkit.json_surgery import json_surgery
+```
+
 ## Local Python dev (Windows)
 
 From `packages/python-mdi-llmkit`, activate the package venv and run the jsonSurgery tests:
