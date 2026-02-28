@@ -486,7 +486,7 @@ describe.concurrent('compareItemLists (live API)', () => {
       );
 
       expect(result.removed).toEqual([]);
-      expect(result.added).toEqual(['Shipping Method', 'Delivery Address']);
+      expect(result.added?.sort()).toEqual(['Delivery Address', 'Shipping Method']);
       expect(result.renamed).toEqual({});
       expect(result.unchanged).toEqual([
         'Customer Name',

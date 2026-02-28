@@ -502,7 +502,10 @@ class CompareItemListsLiveAPITests(unittest.TestCase):
         )
 
         self.assertEqual(result["removed"], [])
-        self.assertEqual(result["added"], ["Shipping Method", "Delivery Address"])
+        self.assertEqual(
+            sorted(result["added"]),
+            ["Delivery Address", "Shipping Method"],
+        )
         self.assertEqual(result["renamed"], {})
         self.assertEqual(
             result["unchanged"],
