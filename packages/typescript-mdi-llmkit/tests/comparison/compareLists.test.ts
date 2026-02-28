@@ -68,12 +68,12 @@ const assertProcessedCountersAreSequential = (events: ComparisonEvent[]) => {
   }
 };
 
-describe.concurrent('compareItemLists (live API)', () => {
+describe('compareItemLists (live API)', () => {
   // IMPORTANT: These tests intentionally use live OpenAI calls and DO NOT mock GptConversation.
   // We are validating the real prompt+schema behavior end-to-end (including model decisions),
   // not just local control-flow in isolation.
 
-  describe.concurrent('input validation', () => {
+  describe('input validation', () => {
     it('throws for duplicate item names (case-insensitive) within a list', async () => {
       await expect(
         compareItemLists(createClient(), ['Widget', 'widget'], ['Other'])
@@ -81,7 +81,7 @@ describe.concurrent('compareItemLists (live API)', () => {
     });
   });
 
-  describe.concurrent('string behavior', () => {
+  describe('string behavior', () => {
     it('classifies case-insensitive exact string matches as unchanged', async () => {
       const { events, callback } = collectEvents();
 
@@ -103,7 +103,7 @@ describe.concurrent('compareItemLists (live API)', () => {
     }, 180000);
   });
 
-  describe.concurrent('name/description behavior', () => {
+  describe('name/description behavior', () => {
     it('treats same names as unchanged even when descriptions differ', async () => {
       const result = await compareItemLists(
         createClient(),
@@ -155,7 +155,7 @@ describe.concurrent('compareItemLists (live API)', () => {
     }, 180000);
   });
 
-  describe.concurrent('rename behavior', () => {
+  describe('rename behavior', () => {
     it('detects a single guided rename', async () => {
       const result = await compareItemLists(
         createClient(),
@@ -197,7 +197,7 @@ describe.concurrent('compareItemLists (live API)', () => {
     }, 180000);
   });
 
-  describe.concurrent('added/deleted behavior', () => {
+  describe('added/deleted behavior', () => {
     it('classifies explicit deletion', async () => {
       const result = await compareItemLists(
         createClient(),
@@ -227,7 +227,7 @@ describe.concurrent('compareItemLists (live API)', () => {
     }, 180000);
   });
 
-  describe.concurrent('mixed outcomes', () => {
+  describe('mixed outcomes', () => {
     it('handles unchanged + renamed + removed + added together', async () => {
       const result = await compareItemLists(
         createClient(),
@@ -248,7 +248,7 @@ describe.concurrent('compareItemLists (live API)', () => {
     }, 180000);
   });
 
-  describe.concurrent('callback reporting behavior', () => {
+  describe('callback reporting behavior', () => {
     it('emits balanced start/finish events with correct source-list flags', async () => {
       const { events, callback } = collectEvents();
 
@@ -345,7 +345,7 @@ describe.concurrent('compareItemLists (live API)', () => {
     }, 180000);
   });
 
-  describe.concurrent('bulk list scenarios', () => {
+  describe('bulk list scenarios', () => {
     it('handles a larger mixed migration with multiple renames/additions/deletions', async () => {
       const beforeItems: SemanticallyComparableListItem[] = [
         'Shared Stable A',
@@ -442,7 +442,7 @@ describe.concurrent('compareItemLists (live API)', () => {
     }, 240000);
   });
 
-  describe.concurrent('inference without explicit mapping instructions', () => {
+  describe('inference without explicit mapping instructions', () => {
     it('infers removed string items when after list omits them', async () => {
       const result = await compareItemLists(
         createClient(),

@@ -17,7 +17,7 @@ const createClient = (): OpenAI =>
     apiKey: OPENAI_API_KEY,
   });
 
-describe.concurrent('jsonSurgery (live API)', () => {
+describe('jsonSurgery (live API)', () => {
   describe('atomic operations', () => {
     it('applies a simple scalar update without mutating original input', async () => {
       const original = {

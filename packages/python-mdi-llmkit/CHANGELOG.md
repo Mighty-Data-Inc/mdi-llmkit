@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.0.6 - 2026-02-27
+
+- Version bump to align Python/TypeScript package versions and trigger a release pipeline test run.
+
 ## 1.0.4 - 2026-02-27
 
 - Fixed an intermittently failing unit test by tightening prompt behavior for deterministic outcomes.
