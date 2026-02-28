@@ -160,31 +160,11 @@ const result = await gptSubmit(
 console.log(result);
 ```
 
-## Notes
-
-- Current TypeScript parity slices include `gptSubmit`, `GptConversation`, and `JSONSchemaFormat`.
-- You can import GPT API symbols via subpath imports, e.g. `import { GptConversation } from "mdi-llmkit/gptApi"`.
-- Comparison symbols are available via `mdi-llmkit/comparison`.
-- Integer schemas can be expressed with `JSON_INTEGER`; numeric (float-capable) schemas can use `JSON_NUMBER`.
-
-## Migration from Python
-
-- Function naming: Python `gpt_submit(...)` maps to TypeScript `gptSubmit(...)`.
-- Argument style: Python keyword args map to a TypeScript options object.
-- Conversation submit methods: Python `submit_user_message(...)` maps to `submitUserMessage(...)`.
-- JSON schema DSL: Python tuple metadata uses TypeScript array metadata.
-  - Python: `("Age", (0, 120), int)`
-  - TypeScript: `["Age", [0, 120], JSON_INTEGER]`
-- JSON schema type markers in TypeScript:
-  - `JSON_INTEGER` for integer-only values.
-  - `JSON_NUMBER` for float-capable numeric values.
 
 ## CI and Release
 
-- CI workflow: `.github/workflows/typescript-ci.yml`
-  - Runs on push to `main` and on pull requests when TypeScript package files change.
+- Unified CI + release workflow: `.github/workflows/typescript-release.yml`
+  - Runs CI on pull requests and on pushes to `main` when TypeScript package files change.
   - Executes `npm ci`, `npm test`, and `npm run build` in `packages/typescript-mdi-llmkit`.
-- Release workflow: `.github/workflows/typescript-release.yml`
-  - Runs on tags matching `typescript-v*` (for example: `typescript-v1.0.1`).
-  - Requires repository secret `NPM_TOKEN` with publish permission to npm.
-  - Executes tests/build before `npm publish --access public --provenance`.
+  - On push to `main`, publishes to npm only if `package.json` version changed and that version is not already published.
+  - Uses repository secret `NPM_TOKEN` for npm authentication.
