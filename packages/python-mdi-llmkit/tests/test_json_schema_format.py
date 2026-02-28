@@ -10,8 +10,6 @@ if str(SRC) not in sys.path:
 
 from mdi_llmkit.gpt_api.json_schema_format import JSONSchemaFormat
 
-import json
-
 
 class JSONSchemaFormatTests(unittest.TestCase):
     def test_object_schema_happy_path(self):

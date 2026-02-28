@@ -85,6 +85,47 @@ Placemark helpers are available in `mdi_llmkit.json_surgery.placemarked_json`:
 - `placemarked_json_stringify(obj, indent=2, skipped_keys=None)`
 - `navigate_to_json_path(obj, json_path)`
 
+## Semantic List Comparison (`compare_item_lists`)
+
+Use `compare_item_lists` when you need to compare a `before` list and an `after`
+list and classify items as removed, added, renamed, or unchanged. This uses AI to resolve semantic renames that would otherwise appear as unrelated remove/add pairs in strict string comparison.
+
+```python
+from openai import OpenAI
+from mdi_llmkit.comparison import compare_item_lists
+
+client = OpenAI()
+
+result = compare_item_lists(
+    client,
+    ["Legacy Plan", "Shared Item"],
+    ["Modern Plan", "shared item"],
+    (
+        "Legacy Plan was renamed to Modern Plan. "
+        "Shared Item is unchanged."
+    ),
+)
+
+print(result)
+# {
+#   "removed": [],
+#   "added": [],
+#   "renamed": {"Legacy Plan": "Modern Plan"},
+#   "unchanged": ["Shared Item"],
+# }
+```
+
+Accepted input item formats:
+
+- String item name: `"Item Name"`
+- Object with optional context: `{"name": "Item Name", "description": "..."}`
+
+Notes:
+
+- Name matching is case-insensitive for exact unchanged detection.
+- Names should be unique within each input list (case-insensitive).
+- Optional `description` is context-only and does not define identity.
+
 ## Local Dev (Windows venv)
 
 From `packages/python-mdi-llmkit`, activate the project venv and run tests:

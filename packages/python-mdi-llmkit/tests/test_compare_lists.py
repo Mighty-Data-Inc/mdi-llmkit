@@ -1,9 +1,17 @@
 import os
+import sys
 import unittest
+from pathlib import Path
 from typing import TypedDict
 
 from dotenv import load_dotenv
 from openai import OpenAI
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 
 from mdi_llmkit.comparison import (

@@ -1,4 +1,19 @@
-"""Semantic list comparison utilities backed by LLM-guided decisions."""
+"""Semantic list comparison utilities backed by LLM-guided decisions.
+
+This module provides ``compare_item_lists``, a migration-oriented comparator for
+two lists of item names (or ``{"name", "description"}`` items).
+
+The function combines deterministic pre-processing with LLM classification:
+
+1. Normalize and remove obvious case-insensitive exact matches.
+2. Classify remaining ``before`` items as removed vs renamed.
+3. Classify remaining ``after`` items as truly added vs ignored.
+4. Return ``removed``, ``added``, ``renamed``, and ``unchanged`` buckets.
+
+It is designed for workflows where prompt behavior is part of the product
+contract, so the prompt text and JSON schema instructions are intentionally
+strict and stability-focused.
+"""
 
 from functools import cmp_to_key
 from enum import Enum
