@@ -109,6 +109,12 @@ This repo ships two public packages with aligned versions:
 - npm: `mdi-llmkit` from `packages/typescript-mdi-llmkit`
 - PyPI: `mdi-llmkit` from `packages/python-mdi-llmkit`
 
+GitHub release automation publishes each package automatically on push to `main`
+when its package version changes:
+
+- TypeScript checks `packages/typescript-mdi-llmkit/package.json`
+- Python checks `packages/python-mdi-llmkit/pyproject.toml`
+
 Before publishing:
 
 - Ensure both versions are updated (`package.json` and `pyproject.toml`).
