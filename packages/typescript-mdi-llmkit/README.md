@@ -76,7 +76,7 @@ import { jsonSurgery } from 'mdi-llmkit/jsonSurgery';
 - It supports optional schema guidance and key-skipping for model-visible context.
 - It supports validation/progress callbacks and soft iteration/time limits.
 
-## `compareItemLists` (comparison)
+## `compareItemLists` (semanticMatch)
 
 `compareItemLists` performs a semantic diff between a "before" list and an "after" list,
 including LLM-assisted rename/add/remove decisions.
@@ -106,7 +106,7 @@ import {
   compareItemLists,
   ItemComparisonResult,
   type OnComparingItemCallback,
-} from 'mdi-llmkit/comparison';
+} from 'mdi-llmkit/semanticMatch';
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 

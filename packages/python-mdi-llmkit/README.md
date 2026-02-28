@@ -92,7 +92,7 @@ list and classify items as removed, added, renamed, or unchanged. This uses AI t
 
 ```python
 from openai import OpenAI
-from mdi_llmkit.comparison import compare_item_lists
+from mdi_llmkit.semanticMatch import compare_item_lists
 
 client = OpenAI()
 

@@ -14,7 +14,7 @@ class SubpackageImportTests(unittest.TestCase):
     def test_root_package_has_no_convenience_reexports(self):
         sys.modules.pop("mdi_llmkit.json_surgery", None)
         sys.modules.pop("mdi_llmkit.gpt_api", None)
-        sys.modules.pop("mdi_llmkit.comparison", None)
+        sys.modules.pop("mdi_llmkit.semanticMatch", None)
         sys.modules.pop("mdi_llmkit", None)
 
         mdi_llmkit = importlib.import_module("mdi_llmkit")

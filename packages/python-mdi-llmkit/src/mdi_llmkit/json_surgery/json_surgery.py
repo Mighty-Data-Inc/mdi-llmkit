@@ -187,10 +187,6 @@ def json_surgery(
 
     time_started = time.time()
 
-    print(
-        f"Entering json_surgery, client api_key=****{(getattr(openai_client, 'api_key', None) or 'NO_KEY_FIELD_AVAILABLE')[-5:]}"
-    )
-
     convo_base = GptConversation(openai_client=openai_client)
     convo_base.add_developer_message(
         """

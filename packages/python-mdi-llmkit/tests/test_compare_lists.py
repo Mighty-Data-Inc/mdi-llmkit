@@ -14,7 +14,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 
-from mdi_llmkit.comparison import (
+from mdi_llmkit.semanticMatch import (
     ItemComparisonResult,
     OnComparingItemCallback,
     SemanticallyComparableListItem,

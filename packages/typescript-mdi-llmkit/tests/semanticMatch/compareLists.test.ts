@@ -5,7 +5,7 @@ import {
   ItemComparisonResult,
   type OnComparingItemCallback,
   type SemanticallyComparableListItem,
-} from '../../src/comparison/compareLists.js';
+} from '../../src/semanticMatch/compareLists.js';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY?.trim();
 if (!OPENAI_API_KEY) {

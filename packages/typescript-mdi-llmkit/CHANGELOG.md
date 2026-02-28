@@ -2,11 +2,17 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.1.1 - 2026-02-28
+
+- Renamed public semantic diff subpath from `mdi-llmkit/comparison` to `mdi-llmkit/semanticMatch`.
+- Renamed internal source/test module paths from `comparison` to `semanticMatch`.
+- Marked as a clean breaking change (no compatibility alias for the old subpath).
+
 ## 1.1.0 - 2026-02-28
 
-- Added explicit subpath exports for `mdi-llmkit/jsonSurgery` and `mdi-llmkit/comparison` via dedicated index barrels.
+- Added explicit subpath exports for `mdi-llmkit/jsonSurgery` and `mdi-llmkit/semanticMatch` via dedicated index barrels.
 - Standardized `jsonSurgery` export mapping to `dist/src/jsonSurgery/index.{js,d.ts}` for consistent subpath packaging.
-- Removed root-level convenience re-exports so consumers now import APIs via subpaths only (`mdi-llmkit/gptApi`, `mdi-llmkit/jsonSurgery`, `mdi-llmkit/comparison`).
+- Removed root-level convenience re-exports so consumers now import APIs via subpaths only (`mdi-llmkit/gptApi`, `mdi-llmkit/jsonSurgery`, `mdi-llmkit/semanticMatch`).
 
 ## 1.0.6 - 2026-02-27
 

@@ -7,20 +7,20 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 const DIST_GPTAPI_INDEX = path.resolve('dist/src/gptApi/index.js');
 const DIST_JSON_SURGERY = path.resolve('dist/src/jsonSurgery/index.js');
-const DIST_COMPARISON_INDEX = path.resolve('dist/src/comparison/index.js');
+const DIST_SEMANTIC_MATCH_INDEX = path.resolve('dist/src/semanticMatch/index.js');
 
 beforeAll(() => {
   if (
     !existsSync(DIST_GPTAPI_INDEX) ||
     !existsSync(DIST_JSON_SURGERY) ||
-    !existsSync(DIST_COMPARISON_INDEX)
+    !existsSync(DIST_SEMANTIC_MATCH_INDEX)
   ) {
     execSync('npm run build', { stdio: 'inherit' });
   }
 });
 
 describe('package subpath exports', () => {
-  it('declares gptApi, jsonSurgery, and comparison in package exports', async () => {
+  it('declares gptApi, jsonSurgery, and semanticMatch in package exports', async () => {
     const packageJsonPath = path.resolve('package.json');
     const packageJsonRaw = await readFile(packageJsonPath, 'utf8');
     const packageJson = JSON.parse(packageJsonRaw) as {
@@ -43,12 +43,12 @@ describe('package subpath exports', () => {
       './dist/src/jsonSurgery/index.js'
     );
 
-    expect(packageJson.exports?.['./comparison']).toBeDefined();
-    expect(packageJson.exports?.['./comparison']?.types).toBe(
-      './dist/src/comparison/index.d.ts'
+    expect(packageJson.exports?.['./semanticMatch']).toBeDefined();
+    expect(packageJson.exports?.['./semanticMatch']?.types).toBe(
+      './dist/src/semanticMatch/index.d.ts'
     );
-    expect(packageJson.exports?.['./comparison']?.import).toBe(
-      './dist/src/comparison/index.js'
+    expect(packageJson.exports?.['./semanticMatch']?.import).toBe(
+      './dist/src/semanticMatch/index.js'
     );
   });
 
@@ -67,8 +67,8 @@ describe('package subpath exports', () => {
     expect(typeof mod.JSONSurgeryError).toBe('function');
   });
 
-  it('imports comparison symbols from "mdi-llmkit/comparison"', async () => {
-    const mod = await import('mdi-llmkit/comparison');
+  it('imports semanticMatch symbols from "mdi-llmkit/semanticMatch"', async () => {
+    const mod = await import('mdi-llmkit/semanticMatch');
 
     expect(typeof mod.compareItemLists).toBe('function');
     expect(typeof mod.ItemComparisonResult).toBe('object');
