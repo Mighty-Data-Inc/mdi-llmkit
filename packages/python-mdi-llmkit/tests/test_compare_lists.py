@@ -1,18 +1,12 @@
 import os
-import sys
 import unittest
-from pathlib import Path
 from typing import TypedDict
 
+from dotenv import load_dotenv
 from openai import OpenAI
 
 
-ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
-
-from mdi_llmkit.comparison import (  # noqa: E402
+from mdi_llmkit.comparison import (
     ItemComparisonResult,
     OnComparingItemCallback,
     SemanticallyComparableListItem,
@@ -20,17 +14,21 @@ from mdi_llmkit.comparison import (  # noqa: E402
 )
 
 
+print(f"Loading .env from CWD={os.getcwd()}")
+load_dotenv()
+
+
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 if not OPENAI_API_KEY:
     raise RuntimeError(
-        "OPENAI_API_KEY is required for compareItemLists live API tests. Configure your test environment to provide it."
+        "OPENAI_API_KEY is required for json_surgery live API tests. "
+        "Configure your test environment to provide it."
     )
 
 
 def create_client() -> OpenAI:
-    return OpenAI(
-        api_key=OPENAI_API_KEY,
-    )
+    openai_client = OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
+    return openai_client
 
 
 class ComparisonEvent(TypedDict):
