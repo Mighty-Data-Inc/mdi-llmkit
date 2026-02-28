@@ -481,12 +481,12 @@ describe.concurrent('compareItemLists (live API)', () => {
           'Subtotal',
           'Order Date',
           'Shipping Method',
-          'Tracking Number',
+          'Delivery Address',
         ]
       );
 
       expect(result.removed).toEqual([]);
-      expect(result.added).toEqual(['Shipping Method', 'Tracking Number']);
+      expect(result.added).toEqual(['Shipping Method', 'Delivery Address']);
       expect(result.renamed).toEqual({});
       expect(result.unchanged).toEqual([
         'Customer Name',

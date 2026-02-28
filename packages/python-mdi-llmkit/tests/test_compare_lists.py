@@ -497,12 +497,12 @@ class CompareItemListsLiveAPITests(unittest.TestCase):
                 "Subtotal",
                 "Order Date",
                 "Shipping Method",
-                "Tracking Number",
+                "Delivery Address",
             ],
         )
 
         self.assertEqual(result["removed"], [])
-        self.assertEqual(result["added"], ["Shipping Method", "Tracking Number"])
+        self.assertEqual(result["added"], ["Shipping Method", "Delivery Address"])
         self.assertEqual(result["renamed"], {})
         self.assertEqual(
             result["unchanged"],
