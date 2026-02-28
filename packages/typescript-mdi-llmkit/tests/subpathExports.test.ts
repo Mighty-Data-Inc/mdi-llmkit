@@ -6,7 +6,7 @@ import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 const DIST_GPTAPI_INDEX = path.resolve('dist/src/gptApi/index.js');
-const DIST_JSON_SURGERY = path.resolve('dist/src/jsonSurgery/jsonSurgery.js');
+const DIST_JSON_SURGERY = path.resolve('dist/src/jsonSurgery/index.js');
 const DIST_COMPARISON_INDEX = path.resolve('dist/src/comparison/index.js');
 
 beforeAll(() => {
@@ -37,10 +37,10 @@ describe('package subpath exports', () => {
 
     expect(packageJson.exports?.['./jsonSurgery']).toBeDefined();
     expect(packageJson.exports?.['./jsonSurgery']?.types).toBe(
-      './dist/src/jsonSurgery/jsonSurgery.d.ts'
+      './dist/src/jsonSurgery/index.d.ts'
     );
     expect(packageJson.exports?.['./jsonSurgery']?.import).toBe(
-      './dist/src/jsonSurgery/jsonSurgery.js'
+      './dist/src/jsonSurgery/index.js'
     );
 
     expect(packageJson.exports?.['./comparison']).toBeDefined();

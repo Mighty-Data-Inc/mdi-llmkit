@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.1.0 - 2026-02-28
+
+- Removed root-level convenience re-exports from `mdi_llmkit` so package usage is subpackage-only.
+- Preserved subpackage import paths for public APIs (`mdi_llmkit.gpt_api`, `mdi_llmkit.json_surgery`, `mdi_llmkit.comparison`).
+- Added import-surface regression coverage to ensure root exports remain empty while subpackage imports continue to work.
+
 ## 1.0.6 - 2026-02-27
 
 - Version bump to align Python/TypeScript package versions and trigger a release pipeline test run.

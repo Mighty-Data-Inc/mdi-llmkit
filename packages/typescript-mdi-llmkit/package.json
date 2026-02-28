@@ -1,6 +1,6 @@
 {
   "name": "mdi-llmkit",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "Utilities for managing multi-shot conversations and structured data handling in LLM applications",
   "author": "Mikhail Voloshin",
   "license": "MIT",
@@ -22,8 +22,8 @@
       "import": "./dist/src/gptApi/index.js"
     },
     "./jsonSurgery": {
-      "types": "./dist/src/jsonSurgery/jsonSurgery.d.ts",
-      "import": "./dist/src/jsonSurgery/jsonSurgery.js"
+      "types": "./dist/src/jsonSurgery/index.d.ts",
+      "import": "./dist/src/jsonSurgery/index.js"
     },
     "./comparison": {
       "types": "./dist/src/comparison/index.d.ts",
