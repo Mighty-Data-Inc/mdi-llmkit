@@ -1,9 +1,13 @@
 {
   "name": "mdi-llmkit",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Utilities for managing multi-shot conversations and structured data handling in LLM applications",
   "author": "Mikhail Voloshin",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mighty-Data-Inc/mdi-llmkit"
+  },
   "type": "module",
   "sideEffects": false,
   "main": "dist/src/index.js",
