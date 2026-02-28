@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.0.4 - 2026-02-27
+
+- Updated TypeScript release workflow to use token-based npm authentication (`NPM_TOKEN`).
+- Bumped package version for a fresh release attempt.
+
 ## 1.0.3 - 2026-02-27
 
 - Version bump only, to trigger the release pipeline.

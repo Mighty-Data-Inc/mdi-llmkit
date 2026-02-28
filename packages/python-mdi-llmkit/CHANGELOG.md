@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.0.4 - 2026-02-27
+
+- Fixed an intermittently failing unit test by tightening prompt behavior for deterministic outcomes.
+
 ## 1.0.3 - 2026-02-27
 
 - Version bump only, to trigger the release pipeline.
