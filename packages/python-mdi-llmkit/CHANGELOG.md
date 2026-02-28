@@ -2,6 +2,13 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.0.2 - 2026-02-27
+
+- Added `mdi_llmkit.comparison.compare_item_lists` with deterministic pre-processing plus LLM-guided rename/add/remove classification.
+- Added Python comparison API types and callback contracts (`SemanticallyComparableListItem`, `ItemComparisonResult`, `OnComparingItemCallback`, `StringListComparison`).
+- Added live API test coverage for comparison behavior and callback telemetry in `tests/test_compare_lists.py`.
+- Added Python README documentation for semantic list comparison usage and input formats.
+
 ## 1.0.1 - 2026-02-27
 
 - Promoted the package to the first stable line with immediate patch-level hardening.

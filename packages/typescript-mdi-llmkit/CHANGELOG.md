@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.0.2 - 2026-02-27
+
+- Patch-level release to keep npm and PyPI package versions aligned.
+- No TypeScript API behavior changes in this patch.
+
 ## 1.0.1 - 2026-02-27
 
 - Promoted the package to the first stable line with immediate patch-level hardening.
