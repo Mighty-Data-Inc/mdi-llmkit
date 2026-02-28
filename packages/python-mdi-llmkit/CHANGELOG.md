@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.0.3 - 2026-02-27
+
+- Version bump only, to trigger the release pipeline.
+
 ## 1.0.2 - 2026-02-27
 
 - Added `mdi_llmkit.comparison.compare_item_lists` with deterministic pre-processing plus LLM-guided rename/add/remove classification.
