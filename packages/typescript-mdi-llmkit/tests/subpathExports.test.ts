@@ -72,5 +72,9 @@ describe('package subpath exports', () => {
 
     expect(typeof mod.compareItemLists).toBe('function');
     expect(typeof mod.ItemComparisonResult).toBe('object');
+    expect(typeof mod.getItemName).toBe('function');
+    expect(typeof mod.itemToPromptString).toBe('function');
+    expect(typeof mod.compareItems).toBe('function');
+    expect(typeof mod.areItemNamesEqual).toBe('function');
   });
 });
