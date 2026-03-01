@@ -1,36 +1,8 @@
-/**
- * Utilities for semantic comparison of two item lists using deterministic pre-processing
- * plus LLM-assisted decisions for ambiguous cases.
- *
- * High-level flow:
- * 1) Normalize/sort items and remove obvious case-insensitive exact matches.
- * 2) Ask the LLM to classify remaining "before" items as removed or renamed.
- * 3) Ask the LLM whether remaining "after" items should be considered added.
- * 4) Return `removed`, `added`, `renamed`, and `unchanged` buckets.
- *
- * Key assumptions:
- * - Item names are unique within each input list (case-insensitive).
- * - Comparison is name-based (`string` value or object `name` field).
- * - Optional object `description` is context-only and does not affect identity.
- *
- * Progress reporting:
- * - `OnComparingItemCallback` can be provided to receive start/finish events for each item,
- *   including source list, result classification, optional rename target, and running counts.
- */
 import { OpenAI } from 'openai';
 import { GptConversation } from '../gptApi/gptConversation.js';
 import { JSONSchemaFormat } from '../gptApi/jsonSchemaFormat.js';
+import { getItemName, SemanticItem } from './semanticItem.js';
 
-/**
- * Item shape accepted by `compareItemLists` for semantic comparison.
- *
- * - A raw string is treated as the item's comparable name.
- * - An object uses `name` as the comparable value and may include optional
- *   `description` to provide additional LLM context.
- */
-export type SemanticallyComparableListItem =
-  | string
-  | { name: string; description?: string };
 
 /**
  * Final classification of an item during comparison.
@@ -62,7 +34,7 @@ export enum ItemComparisonResult {
  * @param totalLeftToProcess Number of items remaining after this event.
  */
 export type OnComparingItemCallback = (
-  item: SemanticallyComparableListItem,
+  item: SemanticItem,
   isFromBeforeList: boolean,
   isStarting: boolean,
   result: ItemComparisonResult,
@@ -72,102 +44,6 @@ export type OnComparingItemCallback = (
   totalLeftToProcess: number
 ) => void;
 
-/**
- * Returns the comparable name for a list item.
- */
-const getItemName = (item: SemanticallyComparableListItem): string => {
-  return typeof item === 'string' ? item : item.name;
-};
-
-/**
- * Ensures a list has no duplicate item names after case-insensitive normalization.
- * Throws an error listing duplicates when the uniqueness precondition is violated.
- */
-const assertUniqueNamesInList = (
-  listToCheck: SemanticallyComparableListItem[],
-  listName: 'before' | 'after'
-): void => {
-  const seenNames = new Set<string>();
-  const duplicateNames = new Set<string>();
-
-  for (const item of listToCheck) {
-    const name = getItemName(item).trim().toLowerCase();
-    if (seenNames.has(name)) {
-      duplicateNames.add(name);
-    } else {
-      seenNames.add(name);
-    }
-  }
-
-  if (duplicateNames.size > 0) {
-    throw new Error(
-      `compareItemLists: Duplicate item names found in ${listName} list (case-insensitive): ` +
-        `${Array.from(duplicateNames)
-          .sort()
-          .map((name) => JSON.stringify(name))
-          .join(', ')}`
-    );
-  }
-};
-
-/**
- * Formats a list item for prompt inclusion, including optional description context.
- */
-const itemToPromptString = (item: SemanticallyComparableListItem): string => {
-  if (typeof item === 'string') {
-    return `- ${JSON.stringify(item)}`;
-  } else {
-    let s = `- ${JSON.stringify(item.name)}`;
-    if (
-      item.description &&
-      item.description.trim().toLowerCase() !== item.name.trim().toLowerCase()
-    ) {
-      s += ` (details: ${JSON.stringify(item.description)})`;
-    }
-    return s;
-  }
-};
-
-/**
- * Sort comparator for list items by case-insensitive name.
- */
-const compareItemsByName = (
-  a: SemanticallyComparableListItem,
-  b: SemanticallyComparableListItem
-) => {
-  const nameA = getItemName(a).toLowerCase();
-  const nameB = getItemName(b).toLowerCase();
-  return nameA.localeCompare(nameB);
-};
-
-/**
- * Compares two names case-insensitively while tolerating JSON-escaped variants.
- */
-const areNamesEquivalent = (a: string, b: string): boolean => {
-  a = a.trim().toLowerCase();
-  b = b.trim().toLowerCase();
-  if (a === b || a === JSON.stringify(b) || JSON.stringify(a) === b) {
-    return true;
-  }
-  return false;
-};
-
-/**
- * Removes every item whose name matches the target (case-insensitive, JSON-tolerant).
- */
-const removeItemsByName = (
-  listToModify: SemanticallyComparableListItem[],
-  itemNameToRemove: string
-): SemanticallyComparableListItem[] => {
-  itemNameToRemove = itemNameToRemove.trim().toLowerCase();
-  return listToModify.filter((item) => {
-    const name = getItemName(item).trim().toLowerCase();
-    if (areNamesEquivalent(name, itemNameToRemove)) {
-      return false; // Remove this item
-    }
-    return true; // Keep this item
-  });
-};
 
 /**
  * Result of comparing two lists of strings.
@@ -186,8 +62,6 @@ export interface StringListComparison {
  * properties; in these situations, it's the `name` property that is compared.
  * The comparison is case insensitive.
  *
- * IMPORTANT: Item names are expected to be unique within each input list (case-insensitive).
- * Duplicate names in either list are not supported and may produce incorrect results.
  * @param before - The list of strings/items before the changes.
  * @param after - The list of strings/items after the changes.
  * @param explanation Optional explanation that provides context for the comparison, e.g.
@@ -203,8 +77,8 @@ export interface StringListComparison {
  */
 export const compareItemLists = async (
   openaiClient: OpenAI,
-  listBefore: SemanticallyComparableListItem[],
-  listAfter: SemanticallyComparableListItem[],
+  listBefore: SemanticItem[],
+  listAfter: SemanticItem[],
   explanation?: string,
   onComparingItem?: OnComparingItemCallback
 ): Promise<{
@@ -213,21 +87,12 @@ export const compareItemLists = async (
   renamed: Record<string, string>;
   unchanged: string[];
 }> => {
-  // Make sure we don't modify the original lists.
-  listBefore = JSON.parse(JSON.stringify(listBefore));
-  listAfter = JSON.parse(JSON.stringify(listAfter));
-
   const retval = {
     removed: [] as string[],
     added: [] as string[],
     renamed: {} as Record<string, string>,
     unchanged: [] as string[],
   };
-
-  assertUniqueNamesInList(listBefore, 'before');
-  assertUniqueNamesInList(listAfter, 'after');
-  listBefore.sort(compareItemsByName);
-  listAfter.sort(compareItemsByName);
 
   const setStringsBefore = new Set<string>(
     listBefore.map((item) => getItemName(item))

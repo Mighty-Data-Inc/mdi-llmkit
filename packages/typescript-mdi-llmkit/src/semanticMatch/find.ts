@@ -10,14 +10,13 @@
  * 1) Check for exact name equality.
  * 2) If no exact match exists, use an LLM to infer conceptual equivalence.
  *
- * The exported function returns the exact list item name when a match is found, or `null`
- * when no sufficiently similar item exists.
+ * The exported function returns the index of the first matching list item when a match
+ * is found, or `-1` when no sufficiently similar item exists.
  */
 
 import { OpenAI } from 'openai';
 import {
   areItemNamesEqual,
-  getItemName,
   itemToPromptString,
   SemanticItem,
 } from './semanticItem.js';
@@ -30,17 +29,18 @@ import { JSONSchemaFormat } from '../gptApi/jsonSchemaFormat.js';
  * A semantic match means two items represent the same underlying concept even if their
  * names differ (for example, due to renaming, wording changes, or synonyms).
  *
- * The function first checks for an exact name match and returns immediately if found.
+ * The function first checks for an exact name match and returns its index immediately
+ * if found.
  * If no exact match exists, it asks the LLM to decide whether the test item is represented
- * in the list under a different name and returns that list item's name, or `null` when no
- * good semantic match is found.
+ * in the list under a different name and returns the index of the first matching list item,
+ * or `-1` when no good semantic match is found.
  *
  * @param openaiClient An instance of the OpenAI client to use for LLM interactions.
  * @param itemlist The list of strings/items to compare.
  * @param itemToFind The item for which we want to find a semantic match in the list.
  * @param explanation Optional explanation that provides context for the comparison, e.g.
  * a description of the items or the nature of the changes.
- * @returns The name of the best matching item from the list, or `null` if no good match
+ * @returns The index of the first matching item from the list, or `-1` if no good match
  * is found.
  */
 export const findSemanticMatch = async (
@@ -48,12 +48,26 @@ export const findSemanticMatch = async (
   itemlist: SemanticItem[],
   itemToFind: SemanticItem,
   explanation?: string
-): Promise<string | null> => {
+): Promise<number> => {
   // First check if there's an exact match for the item in the list.
   // If so, we can skip the LLM and just return that.
-  for (const item of itemlist) {
+  for (let i = 0; i < itemlist.length; i++) {
+    const item = itemlist[i];
     if (areItemNamesEqual(item, itemToFind)) {
-      return getItemName(item);
+      // We have an exact name match, but the items might contain descriptions.
+      // If one or the other does *not* have a description, then call it a match.
+      // If they both have descriptions, then we'll call it a match if the
+      // descriptions are identical. If the descriptions are different, then we'll
+      // have to let the LLM decide.
+      if (
+        typeof item === 'string' ||
+        typeof itemToFind === 'string' ||
+        !item.description ||
+        !itemToFind.description ||
+        item.description.trim() === itemToFind.description.trim()
+      ) {
+        return i;
+      }
     }
   }
 
@@ -98,8 +112,9 @@ ${explanation}
   }
 
   let sList = '';
-  for (const item of itemlist) {
-    sList += `- ${itemToPromptString(item)}\n`;
+  for (let iItem = 0; iItem < itemlist.length; iItem++) {
+    const item = itemlist[iItem];
+    sList += `- ITEM #${iItem + 1}. ${itemToPromptString(item)}\n`;
   }
 
   convo.addUserMessage(`
@@ -127,11 +142,11 @@ And here is the test item to compare against that list:
           Boolean,
           'Whether the test item is present in the list.',
         ],
-        item_name_in_list: [
-          String,
-          `The exact name, as it appears in the list, of the item that you've identified as ` +
+        item_number_in_list: [
+          Number,
+          `The item number (as indicated by "ITEM #") of the item that you've identified as ` +
             `matching the test item. If you don't think any item in the list matches the ` +
-            `test item, then leave this as an empty string.`,
+            `test item, then set this to -1.`,
         ],
       }
     ),
@@ -140,12 +155,22 @@ And here is the test item to compare against that list:
   const isTestItemInList = convo.getLastReplyDictField(
     'is_testitem_in_list'
   ) as boolean;
-  const itemNameInList = convo.getLastReplyDictField(
-    'item_name_in_list'
-  ) as string;
+  const itemNumberInList = convo.getLastReplyDictField(
+    'item_number_in_list'
+  ) as number;
 
   if (!isTestItemInList) {
-    return null;
+    return -1;
   }
-  return itemNameInList || null;
+
+  if (!Number.isInteger(itemNumberInList)) {
+    return -1;
+  }
+
+  const index = itemNumberInList - 1;
+  if (index < 0 || index >= itemlist.length) {
+    return -1;
+  }
+
+  return index;
 };
