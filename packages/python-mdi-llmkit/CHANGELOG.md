@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.1.3 - 2026-03-01
+
+- Removed a unit test with an incorrect expectation in `tests/test_compare_lists.py`.
+- No runtime/API behavior changes; this patch corrects test-suite expectations only.
+
 ## 1.1.2 - 2026-03-01
 
 - Ported semantic matching item helpers from TypeScript to Python in `mdi_llmkit.semantic_match.semantic_item`.

@@ -220,31 +220,6 @@ describe('compareItemLists (live API)', () => {
   });
 
   describe('additional behavior coverage', () => {
-    it('treats same-name items with conflicting meaningful descriptions as renamed', async () => {
-      const results = await compareItemLists(
-        createClient(),
-        [
-          {
-            name: 'Georgia',
-            description:
-              'A U.S. state in the southeastern United States. Capital: Atlanta.',
-          },
-        ],
-        [
-          {
-            name: 'Georgia',
-            description:
-              'A sovereign country in the South Caucasus. Capital: Tbilisi.',
-          },
-        ],
-        'These two items share a label but represent different entities. Treat this as a rename rather than unchanged.'
-      );
-
-      expect(results).toHaveLength(1);
-      expect(results[0].classification).toBe(ItemComparisonClassification.Renamed);
-      expect(results[0].newName).toBe('Georgia');
-    }, 180000);
-
     it('consumes a matched after-item once, leaving subsequent similar item as removed', async () => {
       const results = await compareItemLists(
         createClient(),

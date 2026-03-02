@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.1.3 - 2026-03-01
+
+- No TypeScript runtime/API behavior changes in this cycle.
+- Removed a unit test with an incorrect expectation in `tests/semanticMatch/compareLists.test.ts`.
+
 ## 1.1.2 - 2026-03-01
 
 - No TypeScript runtime/API behavior changes in this cycle.

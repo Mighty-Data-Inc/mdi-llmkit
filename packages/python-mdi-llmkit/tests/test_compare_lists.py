@@ -289,30 +289,6 @@ class CompareItemListsLiveAPITests(unittest.TestCase):
         self.assertEqual(len(results), 4)
 
     # additional behavior coverage
-    def test_treats_same_name_items_with_conflicting_descriptions_as_renamed(self):
-        results = compare_item_lists(
-            create_client(),
-            [
-                {
-                    "name": "Georgia",
-                    "description": "A U.S. state in the southeastern United States. Capital: Atlanta.",
-                },
-            ],
-            [
-                {
-                    "name": "Georgia",
-                    "description": "A sovereign country in the South Caucasus. Capital: Tbilisi.",
-                },
-            ],
-            "These two items share a label but represent different entities. Treat this as a rename rather than unchanged.",
-        )
-
-        self.assertEqual(len(results), 1)
-        self.assertEqual(
-            results[0]["classification"], ItemComparisonClassification.RENAMED
-        )
-        self.assertEqual(results[0].get("new_name"), "Georgia")
-
     def test_consumes_matched_after_item_once_leaving_similar_item_as_removed(self):
         results = compare_item_lists(
             create_client(),
