@@ -1,5 +1,6 @@
 export const GPT_MODEL_CHEAP = "gpt-4.1-nano";
 export const GPT_MODEL_SMART = "gpt-4.1";
+export const GPT_MODEL_VISION = "gpt-4.1";
 
 const GPT_RETRY_LIMIT_DEFAULT = 5;
 const GPT_RETRY_BACKOFF_TIME_SECONDS_DEFAULT = 30;

@@ -6,7 +6,7 @@ import {
 
 export interface ConversationMessage {
   role: string;
-  content: string;
+  content: string | unknown;
 }
 
 export interface GptConversationOptions {
