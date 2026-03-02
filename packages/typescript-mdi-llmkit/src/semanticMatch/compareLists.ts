@@ -18,6 +18,8 @@ export enum ItemComparisonClassification {
   Unchanged = 'unchanged',
 }
 
+export const ItemComparisonResult = ItemComparisonClassification;
+
 export type ItemComparisonResult = {
   item: SemanticItem;
   classification: ItemComparisonClassification;

@@ -6,7 +6,7 @@
  * - `getItemName` normalizes an item to its comparable name.
  * - `itemToPromptString` formats an item for prompt text, including optional details.
  * - `compareItems` provides case-insensitive ordering by item name.
- * - `areItemsEquivalent` provides case-insensitive name equivalence.
+ * - `areItemsEqual` provides equality checks across comparable item content.
  *
  * Matching orchestration (removed/added/renamed classification) is implemented in
  * higher-level modules and consumes these utilities.
@@ -75,35 +75,51 @@ export const itemToPromptString = (item: SemanticItem): string => {
 };
 
 /**
- * Sort comparator for list items by case-insensitive name.
+ * Sort comparator for list items.
+ *
+ * Ordering behavior:
+ * 1) Compare names case-insensitively after trimming leading/trailing whitespace.
+ * 2) If names are equal, compare non-redundant descriptions case-insensitively
+ *    as a tie-breaker.
  */
 export const compareItems = (
   a: SemanticItem,
   b: SemanticItem
 ) => {
-  const nameA = getItemName(a).toLowerCase();
-  const nameB = getItemName(b).toLowerCase();
-  return nameA.localeCompare(nameB);
+  const nameA = getItemName(a).trim().toLowerCase();
+  const nameB = getItemName(b).trim().toLowerCase();
+  const byName = nameA.localeCompare(nameB);
+  if (byName !== 0) {
+    return byName;
+  }
+
+  const descA = (getItemDescription(a) ?? '').trim().toLowerCase();
+  const descB = (getItemDescription(b) ?? '').trim().toLowerCase();
+  return descA.localeCompare(descB);
 };
 
 /**
- * Case-insensitive name equivalence check for two items.
+ * Equality check for two items.
+ *
+ * Equality uses the same semantics as `compareItems`:
+ * - names are compared case-insensitively after trimming;
+ * - when names tie, non-redundant descriptions are compared
+ *   case-insensitively after trimming.
  * @param a The first item to compare.
  * @param b The second item to compare.
- * @returns `true` if the items are considered equal based on their names 
- * (case-insensitive), `false` otherwise.
+ * @returns `true` if the items are equal under comparator semantics, `false` otherwise.
  */
-export const areItemNamesEqual = (a: SemanticItem, b: SemanticItem): boolean => {
+export const areItemsEqual = (a: SemanticItem, b: SemanticItem): boolean => {
   return compareItems(a, b) === 0;
 }
 
 /**
- * Removes an item from a list based on name equivalence.
+ * Removes an item from a list based on full item equivalence.
  * @param itemList The list of items to remove from.
- * @param itemToRemove The item to remove from the list. Any item with a name that is 
- * case-insensitively equal to this item's name will be removed.
+ * @param itemToRemove The item to remove from the list. Any item equal to this item
+ * under `areItemsEqual` semantics will be removed.
  * @returns A new list with the specified item removed.
  */
 export const removeItemFromList = (itemList: SemanticItem[], itemToRemove: SemanticItem): SemanticItem[] => {
-  return itemList.filter(item => !areItemNamesEqual(item, itemToRemove));
+  return itemList.filter(item => !areItemsEqual(item, itemToRemove));
 }

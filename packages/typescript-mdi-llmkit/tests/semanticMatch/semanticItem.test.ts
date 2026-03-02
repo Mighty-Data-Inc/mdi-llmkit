@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  areItemNamesEqual,
+  areItemsEqual,
   compareItems,
   getItemDescription,
   getItemName,
@@ -110,36 +110,54 @@ describe('semanticItem helpers', () => {
       expect(sortedNames).toEqual(['alpha', 'Bravo', 'charlie', 'zeta']);
     });
 
-    it('does not trim names when comparing', () => {
-      expect(compareItems('name', ' name')).toBeGreaterThan(0);
+    it('trims names before comparing', () => {
+      expect(compareItems('name', ' name')).toBe(0);
+    });
+
+    it('uses descriptions as case-insensitive tie-breaker when names are equal', () => {
+      expect(
+        compareItems(
+          { name: 'Georgia', description: 'zebra context' },
+          { name: 'Georgia', description: 'alpha context' }
+        )
+      ).toBeGreaterThan(0);
+    });
+
+    it('treats description case differences as equal in tie-break comparison', () => {
+      expect(
+        compareItems(
+          { name: 'Georgia', description: 'Country in caucasus' },
+          { name: 'Georgia', description: 'country in caucasus' }
+        )
+      ).toBe(0);
     });
   });
 
-  describe('areItemsEquivalent', () => {
-    it('is true for string/object items with same name ignoring case', () => {
-      expect(areItemNamesEqual('Catalog Item', { name: 'catalog item' })).toBe(
+  describe('areItemsEqual', () => {
+    it('is true for items with equal names ignoring case and whitespace', () => {
+      expect(areItemsEqual(' Catalog Item ', { name: 'catalog item' })).toBe(
         true
       );
     });
 
     it('is false for different names', () => {
-      expect(areItemNamesEqual('Catalog Item A', { name: 'Catalog Item B' })).toBe(
+      expect(areItemsEqual('Catalog Item A', { name: 'Catalog Item B' })).toBe(
         false
       );
     });
 
-    it('is based on name only, not description', () => {
+    it('is false when names match but meaningful descriptions differ', () => {
       expect(
-        areItemNamesEqual(
+        areItemsEqual(
           { name: 'Catalog Item', description: 'old' },
           { name: 'catalog item', description: 'new' }
         )
-      ).toBe(true);
+      ).toBe(false);
     });
   });
 
   describe('removeItemFromList', () => {
-    it('removes matching items case-insensitively', () => {
+    it('removes matching string items case-insensitively', () => {
       const original: SemanticItem[] = ['Alpha', 'Bravo', 'alpha'];
 
       const result = removeItemFromList(original, 'ALPHA');
@@ -147,7 +165,22 @@ describe('semanticItem helpers', () => {
       expect(result).toEqual(['Bravo']);
     });
 
-    it('matches across string and object forms by name', () => {
+    it('removes object items when both name and description are equivalent', () => {
+      const original: SemanticItem[] = [
+        { name: 'Catalog Item', description: 'legacy details' },
+        { name: 'Catalog Item', description: 'LEGACY DETAILS' },
+        { name: 'Other Item' },
+      ];
+
+      const result = removeItemFromList(original, {
+        name: 'catalog item',
+        description: '  legacy details  ',
+      });
+
+      expect(result).toEqual([{ name: 'Other Item' }]);
+    });
+
+    it('does not remove items that only match by name when descriptions differ', () => {
       const original: SemanticItem[] = [
         { name: 'Catalog Item', description: 'first copy' },
         'catalog item',
@@ -159,7 +192,8 @@ describe('semanticItem helpers', () => {
         description: 'query description does not matter',
       });
 
-      expect(result).toEqual([{ name: 'Other Item' }]);
+      expect(result).toEqual(original);
+      expect(result).not.toBe(original);
     });
 
     it('returns a new list and does not mutate the input array', () => {
@@ -172,7 +206,7 @@ describe('semanticItem helpers', () => {
       expect(result).not.toBe(original);
     });
 
-    it('returns unchanged items when there is no name match', () => {
+    it('returns unchanged items when there is no equivalent item', () => {
       const original: SemanticItem[] = ['Alpha', { name: 'Bravo' }];
 
       const result = removeItemFromList(original, 'Charlie');
