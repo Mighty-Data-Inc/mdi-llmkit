@@ -82,6 +82,7 @@ print(result)
 ```
 
 Placemark helpers are available in `mdi_llmkit.json_surgery.placemarked_json`:
+
 - `placemarked_json_stringify(obj, indent=2, skipped_keys=None)`
 - `navigate_to_json_path(obj, json_path)`
 
@@ -92,7 +93,7 @@ list and classify items as removed, added, renamed, or unchanged. This uses AI t
 
 ```python
 from openai import OpenAI
-from mdi_llmkit.semanticMatch import compare_item_lists
+from mdi_llmkit.semantic_match import compare_item_lists
 
 client = OpenAI()
 
@@ -107,12 +108,18 @@ result = compare_item_lists(
 )
 
 print(result)
-# {
-#   "removed": [],
-#   "added": [],
-#   "renamed": {"Legacy Plan": "Modern Plan"},
-#   "unchanged": ["Shared Item"],
-# }
+# [
+#   {
+#     "item": "Legacy Plan",
+#     "classification": "renamed",
+#     "new_name": "Modern Plan",
+#   },
+#   {
+#     "item": "Shared Item",
+#     "classification": "unchanged",
+#     "new_name": None,
+#   },
+# ]
 ```
 
 Accepted input item formats:

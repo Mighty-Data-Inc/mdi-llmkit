@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.1.2 - 2026-03-01
+
+- No TypeScript runtime/API behavior changes in this cycle.
+- Python package received semantic-match porting updates (`semantic_match` source + parity tests) to align cross-language feature coverage.
+
 ## 1.1.1 - 2026-02-28
 
 - Renamed public semantic diff subpath from `mdi-llmkit/comparison` to `mdi-llmkit/semanticMatch`.

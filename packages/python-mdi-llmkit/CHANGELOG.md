@@ -2,6 +2,17 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.1.2 - 2026-03-01
+
+- Ported semantic matching item helpers from TypeScript to Python in `mdi_llmkit.semantic_match.semantic_item`.
+- Added `find_semantic_match` in `mdi_llmkit.semantic_match.find` as a Python port of `findSemanticMatch`.
+- Added record-based comparison API in `mdi_llmkit.semantic_match.compare_lists` with `ItemComparisonClassification`, `ItemComparisonResult`, and `compare_item_lists`.
+- Updated subpackage exports for `mdi_llmkit.semantic_match` to include semantic item, find, and compare APIs.
+- Added/ported live API tests for semantic match finder in `tests/test_find.py`.
+- Replaced comparison tests with parity coverage for the new record-based compare contract in `tests/test_compare_lists.py`.
+- Added/ported semantic item helper tests in `tests/test_semantic_item.py`.
+- Updated docs/import references to use `mdi_llmkit.semantic_match` while preserving older changelog entries for historical accuracy.
+
 ## 1.1.1 - 2026-02-28
 
 - Renamed semantic diff subpackage import path from `mdi_llmkit.comparison` to `mdi_llmkit.semanticMatch`.
