@@ -16,7 +16,7 @@
 
 import { OpenAI } from 'openai';
 import {
-  getItemName,
+  areItemsEqual,
   itemToPromptString,
   SemanticItem,
 } from './semanticItem.js';
@@ -53,21 +53,8 @@ export const findSemanticMatch = async (
   // If so, we can skip the LLM and just return that.
   for (let i = 0; i < itemlist.length; i++) {
     const item = itemlist[i];
-    if (getItemName(item).toLowerCase() === getItemName(itemToFind).toLowerCase()) {
-      // We have an exact name match, but the items might contain descriptions.
-      // If one or the other does *not* have a description, then call it a match.
-      // If they both have descriptions, then we'll call it a match if the
-      // descriptions are identical. If the descriptions are different, then we'll
-      // have to let the LLM decide.
-      if (
-        typeof item === 'string' ||
-        typeof itemToFind === 'string' ||
-        !item.description ||
-        !itemToFind.description ||
-        item.description.trim() === itemToFind.description.trim()
-      ) {
-        return i;
-      }
+    if (areItemsEqual(item, itemToFind)) {
+      return i;
     }
   }
 

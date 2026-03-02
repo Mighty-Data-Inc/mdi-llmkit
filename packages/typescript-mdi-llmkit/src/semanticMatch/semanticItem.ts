@@ -80,7 +80,8 @@ export const itemToPromptString = (item: SemanticItem): string => {
  * Ordering behavior:
  * 1) Compare names case-insensitively after trimming leading/trailing whitespace.
  * 2) If names are equal, compare non-redundant descriptions case-insensitively
- *    as a tie-breaker.
+ *    as a tie-breaker. We only compare descriptions when both items have a
+ *    non-redundant description.
  */
 export const compareItems = (
   a: SemanticItem,
@@ -95,6 +96,15 @@ export const compareItems = (
 
   const descA = (getItemDescription(a) ?? '').trim().toLowerCase();
   const descB = (getItemDescription(b) ?? '').trim().toLowerCase();
+
+  // In order to compare descriptions, both items should have a description.
+  // If only one item has a description, we don't bother comparing the
+  // description field.
+  if (!descA || !descB) {
+    return 0;
+  }
+
+  // If we have two descriptions, we can use them as a tie-breaker.
   return descA.localeCompare(descB);
 };
 

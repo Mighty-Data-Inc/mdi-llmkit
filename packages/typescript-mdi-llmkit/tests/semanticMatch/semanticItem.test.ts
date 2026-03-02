@@ -87,9 +87,7 @@ describe('semanticItem helpers', () => {
           name: 'Product Alpha',
           description: 'Replaces legacy alpha tier',
         })
-      ).toBe(
-        '- "Product Alpha" (details: "Replaces legacy alpha tier")'
-      );
+      ).toBe('- "Product Alpha" (details: "Replaces legacy alpha tier")');
     });
   });
 
@@ -154,6 +152,19 @@ describe('semanticItem helpers', () => {
         )
       ).toBe(false);
     });
+
+    it('treats name+description Georgia as equal to string Georgia', () => {
+      expect(
+        areItemsEqual(
+          {
+            name: 'Georgia',
+            description:
+              'A sovereign country in the South Caucasus. Capital: Tbilisi.',
+          },
+          'georgia'
+        )
+      ).toBe(true);
+    });
   });
 
   describe('removeItemFromList', () => {
@@ -180,10 +191,29 @@ describe('semanticItem helpers', () => {
       expect(result).toEqual([{ name: 'Other Item' }]);
     });
 
-    it('does not remove items that only match by name when descriptions differ', () => {
+    it('removes the item that does not have a description when name is ambiguous', () => {
       const original: SemanticItem[] = [
         { name: 'Catalog Item', description: 'first copy' },
         'catalog item',
+        { name: 'Other Item' },
+      ];
+
+      const result = removeItemFromList(original, {
+        name: 'CATALOG ITEM',
+        description: 'query description does not matter',
+      });
+
+      expect(result).toEqual([
+        { name: 'Catalog Item', description: 'first copy' },
+        { name: 'Other Item' },
+      ]);
+      expect(result).not.toBe(original);
+    });
+
+    it('does not remove items that only match by name when descriptions differ', () => {
+      const original: SemanticItem[] = [
+        { name: 'Catalog Item', description: 'first copy' },
+        { name: 'catalog item', description: 'second copy' },
         { name: 'Other Item' },
       ];
 
