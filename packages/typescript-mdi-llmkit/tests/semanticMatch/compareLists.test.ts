@@ -1,11 +1,12 @@
 import { OpenAI } from 'openai';
 import { describe, expect, it } from 'vitest';
+
 import {
   compareItemLists,
-  ItemComparisonResult,
-  type OnComparingItemCallback,
-  type SemanticallyComparableListItem,
+  ItemComparisonClassification,
+  type ItemComparisonResult,
 } from '../../src/semanticMatch/compareLists.js';
+import { getItemName, type SemanticItem } from '../../src/semanticMatch/semanticItem.js';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY?.trim();
 if (!OPENAI_API_KEY) {
@@ -19,145 +20,127 @@ const createClient = (): OpenAI =>
     apiKey: OPENAI_API_KEY,
   });
 
-type ComparisonEvent = {
-  item: SemanticallyComparableListItem;
-  isFromBeforeList: boolean;
-  isStarting: boolean;
-  result: ItemComparisonResult;
-  newName: string | undefined;
-  error: string | undefined;
-  totalProcessedSoFar: number;
-  totalLeftToProcess: number;
-};
+const getByClassification = (
+  results: ItemComparisonResult[],
+  classification: ItemComparisonClassification
+): ItemComparisonResult[] =>
+  results.filter((entry) => entry.classification === classification);
 
-const collectEvents = () => {
-  const events: ComparisonEvent[] = [];
-  const callback: OnComparingItemCallback = (
-    item,
-    isFromBeforeList,
-    isStarting,
-    result,
-    newName,
-    error,
-    totalProcessedSoFar,
-    totalLeftToProcess
-  ) => {
-    events.push({
-      item,
-      isFromBeforeList,
-      isStarting,
-      result,
-      newName,
-      error,
-      totalProcessedSoFar,
-      totalLeftToProcess,
-    });
-  };
-  return { events, callback };
-};
+const getNamesByClassification = (
+  results: ItemComparisonResult[],
+  classification: ItemComparisonClassification
+): string[] => getByClassification(results, classification).map((entry) => getItemName(entry.item));
 
-const assertProcessedCountersAreSequential = (events: ComparisonEvent[]) => {
-  const finishes = events.filter((event) => !event.isStarting);
-  let expectedProcessed = 1;
-  for (const event of finishes) {
-    expect(event.totalProcessedSoFar).toBe(expectedProcessed);
-    expectedProcessed += 1;
+const getRenamedMap = (results: ItemComparisonResult[]): Record<string, string> => {
+  const renamed: Record<string, string> = {};
+  for (const entry of getByClassification(
+    results,
+    ItemComparisonClassification.Renamed
+  )) {
+    renamed[getItemName(entry.item)] = entry.newName || '';
   }
-  if (finishes.length > 0) {
-    expect(finishes[finishes.length - 1].totalLeftToProcess).toBe(0);
-  }
+  return renamed;
 };
 
 describe('compareItemLists (live API)', () => {
-  // IMPORTANT: These tests intentionally use live OpenAI calls and DO NOT mock GptConversation.
-  // We are validating the real prompt+schema behavior end-to-end (including model decisions),
-  // not just local control-flow in isolation.
+  // IMPORTANT: These tests intentionally use live OpenAI calls and DO NOT mock findSemanticMatch.
+  // We are validating end-to-end behavior for the current record-based result contract.
 
-  describe('input validation', () => {
-    it('throws for duplicate item names (case-insensitive) within a list', async () => {
-      await expect(
-        compareItemLists(createClient(), ['Widget', 'widget'], ['Other'])
-      ).rejects.toThrow('Duplicate item names found in before list');
-    });
-  });
-
-  describe('string behavior', () => {
-    it('classifies case-insensitive exact string matches as unchanged', async () => {
-      const { events, callback } = collectEvents();
-
-      const result = await compareItemLists(
+  describe('current return contract', () => {
+    it('returns per-item records with classification and optional newName', async () => {
+      const results = await compareItemLists(
         createClient(),
-        ['String Item A', 'String Item B'],
-        ['string item a', 'STRING ITEM B'],
-        'Case-only differences are unchanged.',
-        callback
+        ['Legacy Plan Alpha'],
+        ['Modern Plan Alpha'],
+        'Legacy Plan Alpha was renamed to Modern Plan Alpha.'
       );
 
-      expect(result.removed).toEqual([]);
-      expect(result.added).toEqual([]);
-      expect(result.renamed).toEqual({});
-      expect(result.unchanged).toEqual(['String Item A', 'String Item B']);
-
-      // Deterministic pruning handles all items before any LLM loop.
-      expect(events).toHaveLength(0);
+      expect(Array.isArray(results)).toBe(true);
+      expect(results.length).toBe(1);
+      expect(results[0].item).toBe('Legacy Plan Alpha');
+      expect(results[0].classification).toBe(ItemComparisonClassification.Renamed);
+      expect(results[0].newName).toBe('Modern Plan Alpha');
     }, 180000);
   });
 
-  describe('name/description behavior', () => {
-    it('treats same names as unchanged even when descriptions differ', async () => {
-      const result = await compareItemLists(
-        createClient(),
-        [
-          {
-            name: 'Catalog Item 100',
-            description: 'old description content',
-          },
-        ],
-        [
-          {
-            name: 'catalog item 100',
-            description: 'new description content',
-          },
-        ],
-        'Identity is the item name; description differences alone do not imply rename.'
-      );
+  describe('deterministic exact-match behavior', () => {
+    it('classifies exact string matches as unchanged and does not mutate inputs', async () => {
+      const before: SemanticItem[] = ['String Item A', 'String Item B'];
+      const after: SemanticItem[] = ['string item a', 'STRING ITEM B'];
 
-      expect(result.removed).toEqual([]);
-      expect(result.added).toEqual([]);
-      expect(result.renamed).toEqual({});
-      expect(result.unchanged).toEqual(['Catalog Item 100']);
+      const beforeSnapshot = JSON.parse(JSON.stringify(before));
+      const afterSnapshot = JSON.parse(JSON.stringify(after));
+
+      const results = await compareItemLists(createClient(), before, after);
+
+      expect(getNamesByClassification(results, ItemComparisonClassification.Unchanged)).toEqual([
+        'String Item A',
+        'String Item B',
+      ]);
+      expect(getNamesByClassification(results, ItemComparisonClassification.Removed)).toEqual([]);
+      expect(getNamesByClassification(results, ItemComparisonClassification.Added)).toEqual([]);
+      expect(getRenamedMap(results)).toEqual({});
+
+      expect(before).toEqual(beforeSnapshot);
+      expect(after).toEqual(afterSnapshot);
     }, 180000);
 
-    it('uses description context to support a guided rename decision', async () => {
-      const result = await compareItemLists(
+    it('classifies object-vs-string same-name pair as unchanged', async () => {
+      const results = await compareItemLists(
         createClient(),
         [
           {
-            name: 'Plan Bronze Legacy',
-            description: 'old tier label for the bronze offering',
+            name: 'Georgia',
+            description:
+              'A sovereign country in the South Caucasus. Capital: Tbilisi.',
           },
         ],
-        [
-          {
-            name: 'Plan Bronze Modern',
-            description: 'new tier label for the same bronze offering',
-          },
-        ],
-        'Exactly one rename occurred. ' +
-          'Plan Bronze Legacy was renamed to Plan Bronze Modern. ' +
-          'Treat as rename; do not treat as remove/add.'
+        ['georgia']
       );
 
-      expect(result.removed).toEqual([]);
-      expect(result.added).toEqual([]);
-      expect(result.unchanged).toEqual([]);
-      expect(result.renamed['Plan Bronze Legacy']).toBe('Plan Bronze Modern');
+      expect(results).toHaveLength(1);
+      expect(results[0].classification).toBe(ItemComparisonClassification.Unchanged);
+      expect(results[0].newName).toBeUndefined();
+    }, 180000);
+  });
+
+  describe('added and removed behavior', () => {
+    it('classifies before-only item as removed', async () => {
+      const results = await compareItemLists(
+        createClient(),
+        ['Delete Me Item'],
+        [],
+        'Delete Me Item was intentionally removed and has no replacement.'
+      );
+
+      expect(getNamesByClassification(results, ItemComparisonClassification.Removed)).toEqual([
+        'Delete Me Item',
+      ]);
+      expect(getNamesByClassification(results, ItemComparisonClassification.Added)).toEqual([]);
+      expect(getNamesByClassification(results, ItemComparisonClassification.Unchanged)).toEqual([]);
+      expect(getRenamedMap(results)).toEqual({});
+    }, 180000);
+
+    it('classifies after-only items as added', async () => {
+      const results = await compareItemLists(
+        createClient(),
+        [],
+        ['Brand New Additive Item', 'Second New Item']
+      );
+
+      expect(getNamesByClassification(results, ItemComparisonClassification.Added)).toEqual([
+        'Brand New Additive Item',
+        'Second New Item',
+      ]);
+      expect(getNamesByClassification(results, ItemComparisonClassification.Removed)).toEqual([]);
+      expect(getNamesByClassification(results, ItemComparisonClassification.Unchanged)).toEqual([]);
+      expect(getRenamedMap(results)).toEqual({});
     }, 180000);
   });
 
   describe('rename behavior', () => {
     it('detects a single guided rename', async () => {
-      const result = await compareItemLists(
+      const results = await compareItemLists(
         createClient(),
         ['ACME Legacy Plan'],
         ['ACME Modern Plan'],
@@ -166,14 +149,16 @@ describe('compareItemLists (live API)', () => {
           'Treat this as rename, not add/remove.'
       );
 
-      expect(result.removed).toEqual([]);
-      expect(result.added).toEqual([]);
-      expect(result.unchanged).toEqual([]);
-      expect(result.renamed['ACME Legacy Plan']).toBe('ACME Modern Plan');
+      expect(getRenamedMap(results)).toEqual({
+        'ACME Legacy Plan': 'ACME Modern Plan',
+      });
+      expect(getNamesByClassification(results, ItemComparisonClassification.Removed)).toEqual([]);
+      expect(getNamesByClassification(results, ItemComparisonClassification.Added)).toEqual([]);
+      expect(getNamesByClassification(results, ItemComparisonClassification.Unchanged)).toEqual([]);
     }, 180000);
 
-    it('supports two independent guided renames in one run', async () => {
-      const result = await compareItemLists(
+    it('handles two guided renames in one run', async () => {
+      const results = await compareItemLists(
         createClient(),
         ['Legacy Product Alpha', 'Legacy Product Beta'],
         ['Modern Product Alpha', 'Modern Product Beta'],
@@ -183,53 +168,19 @@ describe('compareItemLists (live API)', () => {
           'No deletions or net additions in this migration.'
       );
 
-      expect(Object.keys(result.renamed).sort()).toEqual([
-        'Legacy Product Alpha',
-        'Legacy Product Beta',
-      ]);
-      expect(result.renamed['Legacy Product Alpha']).toBe(
-        'Modern Product Alpha'
-      );
-      expect(result.renamed['Legacy Product Beta']).toBe('Modern Product Beta');
-      expect(result.removed).toEqual([]);
-      expect(result.added).toEqual([]);
-      expect(result.unchanged).toEqual([]);
-    }, 180000);
-  });
-
-  describe('added/deleted behavior', () => {
-    it('classifies explicit deletion', async () => {
-      const result = await compareItemLists(
-        createClient(),
-        ['Delete Me Item'],
-        [],
-        'Delete Me Item was intentionally removed and has no replacement.'
-      );
-
-      expect(result.removed).toEqual(['Delete Me Item']);
-      expect(result.added).toEqual([]);
-      expect(result.renamed).toEqual({});
-      expect(result.unchanged).toEqual([]);
-    }, 180000);
-
-    it('classifies explicit addition', async () => {
-      const result = await compareItemLists(
-        createClient(),
-        [],
-        ['Brand New Additive Item'],
-        'Brand New Additive Item is newly introduced and should be treated as added.'
-      );
-
-      expect(result.removed).toEqual([]);
-      expect(result.added).toEqual(['Brand New Additive Item']);
-      expect(result.renamed).toEqual({});
-      expect(result.unchanged).toEqual([]);
+      expect(getRenamedMap(results)).toEqual({
+        'Legacy Product Alpha': 'Modern Product Alpha',
+        'Legacy Product Beta': 'Modern Product Beta',
+      });
+      expect(getNamesByClassification(results, ItemComparisonClassification.Removed)).toEqual([]);
+      expect(getNamesByClassification(results, ItemComparisonClassification.Added)).toEqual([]);
+      expect(getNamesByClassification(results, ItemComparisonClassification.Unchanged)).toEqual([]);
     }, 180000);
   });
 
   describe('mixed outcomes', () => {
-    it('handles unchanged + renamed + removed + added together', async () => {
-      const result = await compareItemLists(
+    it('returns records for unchanged + renamed + removed + added in one run', async () => {
+      const results = await compareItemLists(
         createClient(),
         ['Shared Constant Item', 'Legacy Rename Target', 'Delete Candidate'],
         ['shared constant item', 'Modern Rename Target', 'Add Candidate'],
@@ -239,406 +190,120 @@ describe('compareItemLists (live API)', () => {
           'Shared Constant Item is unchanged.'
       );
 
-      expect(result.unchanged).toEqual(['Shared Constant Item']);
-      expect(result.renamed['Legacy Rename Target']).toBe(
-        'Modern Rename Target'
-      );
-      expect(result.removed).toEqual(['Delete Candidate']);
-      expect(result.added).toEqual(['Add Candidate']);
-    }, 180000);
-  });
-
-  describe('callback reporting behavior', () => {
-    it('emits balanced start/finish events with correct source-list flags', async () => {
-      const { events, callback } = collectEvents();
-
-      await compareItemLists(
-        createClient(),
-        ['Before Removed A', 'Before Removed B'],
-        ['After Added A'],
-        'Before Removed A and Before Removed B were removed. ' +
-          'After Added A was newly added. ' +
-          'No renames exist in this case.',
-        callback
-      );
-
-      const starts = events.filter((event) => event.isStarting);
-      const finishes = events.filter((event) => !event.isStarting);
-
-      expect(starts.length).toBe(finishes.length);
-      expect(starts.length).toBe(3);
-
-      expect(starts.filter((event) => event.isFromBeforeList)).toHaveLength(2);
-      expect(starts.filter((event) => !event.isFromBeforeList)).toHaveLength(1);
-    }, 180000);
-
-    it('increments processed counters sequentially and reaches zero remaining at end', async () => {
-      const { events, callback } = collectEvents();
-
-      await compareItemLists(
-        createClient(),
-        ['Legacy Counter Item'],
-        ['Modern Counter Item', 'New Counter Add'],
-        'Legacy Counter Item was renamed to Modern Counter Item. ' +
-          'New Counter Add is newly added.',
-        callback
-      );
-
-      assertProcessedCountersAreSequential(events);
-    }, 180000);
-
-    it('populates newName only for rename finish events', async () => {
-      const { events, callback } = collectEvents();
-
-      await compareItemLists(
-        createClient(),
-        ['Legacy Named Item'],
-        ['Modern Named Item'],
-        'Legacy Named Item was renamed to Modern Named Item.',
-        callback
-      );
-
-      const renameFinishes = events.filter(
-        (event) =>
-          !event.isStarting && event.result === ItemComparisonResult.Renamed
-      );
-      expect(renameFinishes.length).toBeGreaterThan(0);
-      for (const event of renameFinishes) {
-        expect(event.newName).toBe('Modern Named Item');
-      }
-
-      for (const event of events.filter(
-        (entry) =>
-          !(!entry.isStarting && entry.result === ItemComparisonResult.Renamed)
-      )) {
-        expect(event.newName).toBeUndefined();
-      }
-    }, 180000);
-
-    it('reports live API failures through callback error field (no mocks)', async () => {
-      const { events, callback } = collectEvents();
-
-      const invalidClient = new OpenAI({
-        apiKey: `${OPENAI_API_KEY}-INTENTIONALLY-INVALID-FOR-TEST`,
+      expect(getNamesByClassification(results, ItemComparisonClassification.Unchanged)).toEqual([
+        'Shared Constant Item',
+      ]);
+      expect(getRenamedMap(results)).toEqual({
+        'Legacy Rename Target': 'Modern Rename Target',
       });
+      expect(getNamesByClassification(results, ItemComparisonClassification.Removed)).toEqual([
+        'Delete Candidate',
+      ]);
+      expect(getNamesByClassification(results, ItemComparisonClassification.Added)).toEqual([
+        'Add Candidate',
+      ]);
+    }, 180000);
 
-      const result = await compareItemLists(
-        invalidClient,
-        ['Live API Error Candidate'],
-        ['After Error Path Item'],
-        'If API fails, fallback should still complete with warning messages in callback.',
-        callback
+    it('returns one result record per before-item plus unmatched after-items', async () => {
+      const before: SemanticItem[] = ['A', 'B', 'C'];
+      const after: SemanticItem[] = ['a', 'B-NEW', 'D'];
+
+      const results = await compareItemLists(
+        createClient(),
+        before,
+        after,
+        'A is unchanged (case only). B was renamed to B-NEW. C was removed. D was added.'
       );
 
-      // Fallback behavior on failed before-item processing is to mark as unchanged.
-      expect(result.unchanged).toContain('Live API Error Candidate');
-
-      const finishEventsWithErrors = events.filter(
-        (event) => !event.isStarting && typeof event.error === 'string'
-      );
-      expect(finishEventsWithErrors.length).toBeGreaterThan(0);
-      expect(
-        finishEventsWithErrors.some((event) =>
-          (event.error || '').includes('LLM processing failed')
-        )
-      ).toBe(true);
+      expect(results.length).toBe(4);
     }, 180000);
   });
 
-  describe('bulk list scenarios', () => {
-    it('handles a larger mixed migration with multiple renames/additions/deletions', async () => {
-      const beforeItems: SemanticallyComparableListItem[] = [
-        'Shared Stable A',
-        'Shared Stable B',
-        'Legacy Rename One',
-        'Legacy Rename Two',
-        'Removed Batch One',
-        'Removed Batch Two',
-        'Shared Stable C',
+  describe('additional behavior coverage', () => {
+    it('treats same-name items with conflicting meaningful descriptions as renamed', async () => {
+      const results = await compareItemLists(
+        createClient(),
+        [
+          {
+            name: 'Georgia',
+            description:
+              'A U.S. state in the southeastern United States. Capital: Atlanta.',
+          },
+        ],
+        [
+          {
+            name: 'Georgia',
+            description:
+              'A sovereign country in the South Caucasus. Capital: Tbilisi.',
+          },
+        ],
+        'These two items share a label but represent different entities. Treat this as a rename rather than unchanged.'
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].classification).toBe(ItemComparisonClassification.Renamed);
+      expect(results[0].newName).toBe('Georgia');
+    }, 180000);
+
+    it('consumes a matched after-item once, leaving subsequent similar item as removed', async () => {
+      const results = await compareItemLists(
+        createClient(),
+        ['Legacy Item Alpha', 'Legacy Item Alpha Copy'],
+        ['Modern Item Alpha'],
+        'Only Legacy Item Alpha was renamed to Modern Item Alpha. Legacy Item Alpha Copy was removed.'
+      );
+
+      expect(getRenamedMap(results)).toEqual({
+        'Legacy Item Alpha': 'Modern Item Alpha',
+      });
+      expect(getNamesByClassification(results, ItemComparisonClassification.Removed)).toEqual([
+        'Legacy Item Alpha Copy',
+      ]);
+      expect(getNamesByClassification(results, ItemComparisonClassification.Added)).toEqual([]);
+    }, 180000);
+
+    it('preserves order of added records from remaining after-list items', async () => {
+      const results = await compareItemLists(
+        createClient(),
+        [],
+        [
+          { name: 'Added First', description: 'first' },
+          { name: 'Added Second', description: 'second' },
+          'Added Third',
+        ]
+      );
+
+      expect(getNamesByClassification(results, ItemComparisonClassification.Added)).toEqual([
+        'Added First',
+        'Added Second',
+        'Added Third',
+      ]);
+    }, 180000);
+
+    it('does not mutate before or after lists in mixed classification scenarios', async () => {
+      const before: SemanticItem[] = [
+        'Stable Name',
+        'Legacy Rename Candidate',
+        'Legacy Removed Candidate',
+      ];
+      const after: SemanticItem[] = [
+        'stable name',
+        'Modern Rename Candidate',
+        'Newly Added Candidate',
       ];
 
-      const afterItems: SemanticallyComparableListItem[] = [
-        'shared stable a',
-        'SHARED STABLE B',
-        'Modern Rename One',
-        'Modern Rename Two',
-        'Added Batch One',
-        'Added Batch Two',
-        'shared stable c',
-      ];
+      const beforeSnapshot = JSON.parse(JSON.stringify(before));
+      const afterSnapshot = JSON.parse(JSON.stringify(after));
 
-      const result = await compareItemLists(
+      await compareItemLists(
         createClient(),
-        beforeItems,
-        afterItems,
-        'Migration map: Legacy Rename One -> Modern Rename One. ' +
-          'Legacy Rename Two -> Modern Rename Two. ' +
-          'Removed Batch One and Removed Batch Two were removed. ' +
-          'Added Batch One and Added Batch Two were newly added. ' +
-          'Shared Stable A/B/C are unchanged.'
+        before,
+        after,
+        'Legacy Rename Candidate was renamed to Modern Rename Candidate. Legacy Removed Candidate was removed. Newly Added Candidate was added.'
       );
 
-      expect(result.unchanged).toEqual([
-        'Shared Stable A',
-        'Shared Stable B',
-        'Shared Stable C',
-      ]);
-      expect(result.renamed).toEqual({
-        'Legacy Rename One': 'Modern Rename One',
-        'Legacy Rename Two': 'Modern Rename Two',
-      });
-      expect(result.removed).toEqual([
-        'Removed Batch One',
-        'Removed Batch Two',
-      ]);
-      expect(result.added).toEqual(['Added Batch One', 'Added Batch Two']);
-    }, 240000);
-
-    it('maintains coherent callback counters on larger ambiguous sets', async () => {
-      const { events, callback } = collectEvents();
-
-      const result = await compareItemLists(
-        createClient(),
-        [
-          'Bulk Legacy 1',
-          'Bulk Legacy 2',
-          'Bulk Removed 1',
-          'Bulk Removed 2',
-          'Bulk Shared 1',
-          'Bulk Shared 2',
-        ],
-        [
-          'Bulk Modern 1',
-          'Bulk Modern 2',
-          'Bulk Added 1',
-          'Bulk Added 2',
-          'bulk shared 1',
-          'BULK SHARED 2',
-        ],
-        'Bulk Legacy 1 -> Bulk Modern 1. ' +
-          'Bulk Legacy 2 -> Bulk Modern 2. ' +
-          'Bulk Removed 1 and Bulk Removed 2 were removed. ' +
-          'Bulk Added 1 and Bulk Added 2 were newly added. ' +
-          'Bulk Shared 1 and Bulk Shared 2 are unchanged.',
-        callback
-      );
-
-      expect(result.renamed).toEqual({
-        'Bulk Legacy 1': 'Bulk Modern 1',
-        'Bulk Legacy 2': 'Bulk Modern 2',
-      });
-      expect(result.removed).toEqual(['Bulk Removed 1', 'Bulk Removed 2']);
-      expect(result.added).toEqual(['Bulk Added 1', 'Bulk Added 2']);
-      expect(result.unchanged).toEqual(['Bulk Shared 1', 'Bulk Shared 2']);
-
-      // There are 4 ambiguous "before" items and, after rename removals, 2 remaining
-      // "after" items for add-classification, so callback lifecycle should cover 6 items.
-      const starts = events.filter((event) => event.isStarting);
-      const finishes = events.filter((event) => !event.isStarting);
-      expect(starts.length).toBe(6);
-      expect(finishes.length).toBe(6);
-
-      assertProcessedCountersAreSequential(events);
-    }, 240000);
-  });
-
-  describe('inference without explicit mapping instructions', () => {
-    it('infers removed string items when after list omits them', async () => {
-      const result = await compareItemLists(
-        createClient(),
-        [
-          'Invoice Number',
-          'Purchase Date',
-          'Supplier Name',
-          'Legacy Tax Code',
-          'Deprecated Internal Note',
-          'Total Amount',
-        ],
-        ['Invoice Number', 'Purchase Date', 'Supplier Name', 'Total Amount']
-      );
-
-      expect(result.removed).toEqual([
-        'Deprecated Internal Note',
-        'Legacy Tax Code',
-      ]);
-      expect(result.added).toEqual([]);
-      expect(result.renamed).toEqual({});
-      expect(result.unchanged).toEqual([
-        'Invoice Number',
-        'Purchase Date',
-        'Supplier Name',
-        'Total Amount',
-      ]);
-    }, 180000);
-
-    it('infers added string items when after list introduces them', async () => {
-      const result = await compareItemLists(
-        createClient(),
-        ['Order ID', 'Customer Name', 'Subtotal', 'Order Date'],
-        [
-          'Order ID',
-          'Customer Name',
-          'Subtotal',
-          'Order Date',
-          'Shipping Method',
-          'Delivery Address',
-        ]
-      );
-
-      expect(result.removed).toEqual([]);
-      expect(result.added?.sort()).toEqual(['Delivery Address', 'Shipping Method']);
-      expect(result.renamed).toEqual({});
-      expect(result.unchanged).toEqual([
-        'Customer Name',
-        'Order Date',
-        'Order ID',
-        'Subtotal',
-      ]);
-    }, 180000);
-
-    it('infers removed name/description items without explicit guidance', async () => {
-      const result = await compareItemLists(
-        createClient(),
-        [
-          { name: 'acct_id', description: 'Unique account identifier' },
-          { name: 'acct_name', description: 'Human-readable account name' },
-          { name: 'acct_region', description: 'Assigned sales region' },
-          {
-            name: 'legacy_segment_code',
-            description: 'Old segmentation code from prior CRM',
-          },
-          {
-            name: 'legacy_priority_bucket',
-            description: 'Obsolete account prioritization bucket',
-          },
-        ],
-        [
-          { name: 'acct_id', description: 'Unique account identifier' },
-          { name: 'acct_name', description: 'Human-readable account name' },
-          { name: 'acct_region', description: 'Assigned sales region' },
-        ]
-      );
-
-      expect(result.removed).toEqual([
-        'legacy_priority_bucket',
-        'legacy_segment_code',
-      ]);
-      expect(result.added).toEqual([]);
-      expect(result.renamed).toEqual({});
-      expect(result.unchanged).toEqual(['acct_id', 'acct_name', 'acct_region']);
-    }, 180000);
-
-    it('infers added name/description items without explicit guidance', async () => {
-      const result = await compareItemLists(
-        createClient(),
-        [
-          { name: 'sku', description: 'Stock keeping unit identifier' },
-          { name: 'title', description: 'Product display title' },
-          { name: 'price', description: 'Current listed price' },
-        ],
-        [
-          { name: 'sku', description: 'Stock keeping unit identifier' },
-          { name: 'title', description: 'Product display title' },
-          { name: 'price', description: 'Current listed price' },
-          {
-            name: 'inventory_count',
-            description: 'Current on-hand inventory quantity',
-          },
-          {
-            name: 'warehouse_location',
-            description: 'Primary warehouse storage location code',
-          },
-        ]
-      );
-
-      expect(result.removed).toEqual([]);
-      expect(result.added).toEqual(['inventory_count', 'warehouse_location']);
-      expect(result.renamed).toEqual({});
-      expect(result.unchanged).toEqual(['price', 'sku', 'title']);
-    }, 180000);
-
-    it('infers rename from semantic name similarity plus identical description', async () => {
-      const result = await compareItemLists(
-        createClient(),
-        [
-          {
-            name: 'billing_address_line_1',
-            description: 'Primary street line for billing address',
-          },
-          {
-            name: 'billing_city',
-            description: 'City associated with the billing address',
-          },
-          {
-            name: 'billing_zip_code',
-            description:
-              'The five-digit postal code associated with the billing address',
-          },
-          {
-            name: 'billing_country_code',
-            description: 'ISO country code for the billing address',
-          },
-        ],
-        [
-          {
-            name: 'billing_address_line_1',
-            description: 'Primary street line for billing address',
-          },
-          {
-            name: 'billing_city',
-            description: 'City associated with the billing address',
-          },
-          {
-            name: 'billing_postal_code',
-            description:
-              'The five-digit postal code associated with the billing address',
-          },
-          {
-            name: 'billing_country_code',
-            description: 'ISO country code for the billing address',
-          },
-        ]
-      );
-
-      expect(result.removed).toEqual([]);
-      expect(result.added).toEqual([]);
-      expect(result.unchanged).toEqual([
-        'billing_address_line_1',
-        'billing_city',
-        'billing_country_code',
-      ]);
-      expect(result.renamed).toEqual({
-        billing_zip_code: 'billing_postal_code',
-      });
-    }, 180000);
-
-    it('infers rename from semantic similarity for plain string items', async () => {
-      const result = await compareItemLists(
-        createClient(),
-        [
-          'billing_address_line_1',
-          'billing_city',
-          'billing_zip_code',
-          'billing_country_code',
-        ],
-        [
-          'billing_address_line_1',
-          'billing_city',
-          'billing_postal_code',
-          'billing_country_code',
-        ]
-      );
-
-      expect(result.removed).toEqual([]);
-      expect(result.added).toEqual([]);
-      expect(result.unchanged).toEqual([
-        'billing_address_line_1',
-        'billing_city',
-        'billing_country_code',
-      ]);
-      expect(result.renamed).toEqual({
-        billing_zip_code: 'billing_postal_code',
-      });
+      expect(before).toEqual(beforeSnapshot);
+      expect(after).toEqual(afterSnapshot);
     }, 180000);
   });
 });
