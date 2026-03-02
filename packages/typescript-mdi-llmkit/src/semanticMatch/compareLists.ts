@@ -7,7 +7,7 @@ import { getItemName, SemanticItem } from './semanticItem.js';
 /**
  * Final classification of an item during comparison.
  */
-export enum ItemComparisonResult {
+export enum ItemComparisonJudgment {
   /** Item existed in "before" and is considered deleted in "after". */
   Removed = 'removed',
   /** Item exists in "after" and is considered newly introduced. */
@@ -18,10 +18,16 @@ export enum ItemComparisonResult {
   Unchanged = 'unchanged',
 }
 
+export type ItemComparisonResult = {
+  item: SemanticItem;
+  judgment: ItemComparisonJudgment;
+  newName: string | undefined;
+};
+
 /**
  * Progress callback for per-item comparison lifecycle.
  *
- * @param item The concrete item currently being evaluated.
+ * @param item The item currently being evaluated.
  * @param isFromBeforeList `true` when the item comes from `listBefore`, `false` when
  * it comes from `listAfter`.
  * @param isStarting `true` when evaluation for this item begins, `false` when that
@@ -67,12 +73,7 @@ export interface StringListComparison {
  * @param explanation Optional explanation that provides context for the comparison, e.g.
  * a description of the items or the nature of the changes.
  * @param onComparingItem Optional callback invoked at the start and end of each item
- * evaluation. It receives the current item, whether it is from the "before" list,
- * whether processing is starting (`true`) or finishing (`false`), the
- * current/final classification, renamed target (if applicable), and
- * optional warning/error message, and processed/remaining item counts.
- * `totalProcessedSoFar` increases only when an item
- * finishes; `totalLeftToProcess` is the number of items not yet finished.
+ * evaluation.
  * @returns An object containing removed, added, renamed, and unchanged strings
  */
 export const compareItemLists = async (

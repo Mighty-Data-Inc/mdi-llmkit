@@ -346,6 +346,32 @@ describe('findSemanticMatch (live API)', () => {
         0
       );
     }, 180000);
+
+    it('returns -1 when list contains Georgia country but test item describes Georgia state', async () => {
+      await expectNoMatch(
+        [
+          {
+            name: 'Georgia',
+            description:
+              'A sovereign country in the South Caucasus. Capital: Tbilisi.',
+          },
+          {
+            name: 'France',
+            description: 'A country in Western Europe. Capital: Paris.',
+          },
+          {
+            name: 'Alabama',
+            description:
+              'A U.S. state in the southeastern United States. Capital: Montgomery.',
+          },
+        ],
+        {
+          name: 'Georgia',
+          description:
+            'A U.S. state in the southeastern United States. Capital: Atlanta.',
+        }
+      );
+    }, 180000);
   });
 
   describe('context-guided disambiguation', () => {
