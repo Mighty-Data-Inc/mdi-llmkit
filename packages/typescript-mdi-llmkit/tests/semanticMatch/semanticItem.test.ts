@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   areItemNamesEqual,
   compareItems,
+  getItemDescription,
   getItemName,
   itemToPromptString,
   removeItemFromList,
@@ -18,6 +19,43 @@ describe('semanticItem helpers', () => {
       expect(getItemName({ name: 'Widget', description: 'A part' })).toBe(
         'Widget'
       );
+    });
+  });
+
+  describe('getItemDescription', () => {
+    it('returns undefined for string items', () => {
+      expect(getItemDescription('Widget')).toBeUndefined();
+    });
+
+    it('returns undefined when object description is missing', () => {
+      expect(getItemDescription({ name: 'Widget' })).toBeUndefined();
+    });
+
+    it('returns undefined when description equals name ignoring case and whitespace', () => {
+      expect(
+        getItemDescription({
+          name: 'Product Alpha',
+          description: '  product alpha  ',
+        })
+      ).toBeUndefined();
+    });
+
+    it('returns description when it provides additional context', () => {
+      expect(
+        getItemDescription({
+          name: 'Product Alpha',
+          description: 'Legacy tier retained for existing contracts',
+        })
+      ).toBe('Legacy tier retained for existing contracts');
+    });
+
+    it('preserves original description text when returning value', () => {
+      expect(
+        getItemDescription({
+          name: 'Product Alpha',
+          description: '  Legacy tier retained for existing contracts  ',
+        })
+      ).toBe('  Legacy tier retained for existing contracts  ');
     });
   });
 

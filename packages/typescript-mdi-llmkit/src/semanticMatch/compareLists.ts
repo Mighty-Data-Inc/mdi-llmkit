@@ -7,7 +7,7 @@ import { getItemName, SemanticItem } from './semanticItem.js';
 /**
  * Final classification of an item during comparison.
  */
-export enum ItemComparisonJudgment {
+export enum ItemComparisonClassification {
   /** Item existed in "before" and is considered deleted in "after". */
   Removed = 'removed',
   /** Item exists in "after" and is considered newly introduced. */
@@ -20,60 +20,15 @@ export enum ItemComparisonJudgment {
 
 export type ItemComparisonResult = {
   item: SemanticItem;
-  judgment: ItemComparisonJudgment;
+  classification: ItemComparisonClassification;
   newName: string | undefined;
 };
 
 /**
- * Progress callback for per-item comparison lifecycle.
- *
- * @param item The item currently being evaluated.
- * @param isFromBeforeList `true` when the item comes from `listBefore`, `false` when
- * it comes from `listAfter`.
- * @param isStarting `true` when evaluation for this item begins, `false` when that
- * evaluation completes.
- * @param result Current/final classification for this callback event. For start events,
- * this is a provisional value; for finish events, it is final for that item.
- * @param newName The matched new name when `result` is `Renamed`; otherwise `undefined`.
- * @param error Optional warning/error message for this event; `undefined` when none.
- * @param totalProcessedSoFar Number of items fully processed so far.
- * @param totalLeftToProcess Number of items remaining after this event.
- */
-export type OnComparingItemCallback = (
-  item: SemanticItem,
-  isFromBeforeList: boolean,
-  isStarting: boolean,
-  result: ItemComparisonResult,
-  newName: string | undefined,
-  error: string | undefined,
-  totalProcessedSoFar: number,
-  totalLeftToProcess: number
-) => void;
-
-
-/**
- * Result of comparing two lists of strings.
- */
-export interface StringListComparison {
-  removed: string[];
-  added: string[];
-  renamed: Record<string, string>;
-  unchanged: string[];
-}
-
-/**
- * Compares two lists of strings and identifies differences, including potential renames.
- * The lists presumably use strings. However, in situations where the AI might benefit from
- * additional context, the lists may contain objects with `name` and optional `description`
- * properties; in these situations, it's the `name` property that is compared.
- * The comparison is case insensitive.
- *
- * @param before - The list of strings/items before the changes.
- * @param after - The list of strings/items after the changes.
+ * @param before - The list of items before the changes.
+ * @param after - The list of items after the changes.
  * @param explanation Optional explanation that provides context for the comparison, e.g.
  * a description of the items or the nature of the changes.
- * @param onComparingItem Optional callback invoked at the start and end of each item
- * evaluation.
  * @returns An object containing removed, added, renamed, and unchanged strings
  */
 export const compareItemLists = async (
@@ -81,19 +36,16 @@ export const compareItemLists = async (
   listBefore: SemanticItem[],
   listAfter: SemanticItem[],
   explanation?: string,
-  onComparingItem?: OnComparingItemCallback
-): Promise<{
-  removed: string[];
-  added: string[];
-  renamed: Record<string, string>;
-  unchanged: string[];
-}> => {
-  const retval = {
-    removed: [] as string[],
-    added: [] as string[],
-    renamed: {} as Record<string, string>,
-    unchanged: [] as string[],
-  };
+): Promise<ItemComparisonResult[]> => {
+  const retval: ItemComparisonResult[] = [];
+
+  for (const item of listBefore) {
+    
+  }
+
+
+
+
 
   const setStringsBefore = new Set<string>(
     listBefore.map((item) => getItemName(item))

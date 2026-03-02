@@ -26,10 +26,34 @@ export type SemanticItem =
 
 /**
  * Returns the comparable name for a list item.
+ * @param item The item to extract the name from.
+ * @returns The name of the item, which is used for comparison and matching.
  */
 export const getItemName = (item: SemanticItem): string => {
   return typeof item === 'string' ? item : item.name;
 };
+
+/**
+ * Returns the description of a list item, if available and non-redundant with the name.
+ * If the item is a string or if the description is missing or effectively the same as the name,
+ * this function returns `undefined`.
+ * @param item The item to extract the description from.
+ * @returns The description of the item, or `undefined` if not available or redundant.
+ */
+export const getItemDescription = (item: SemanticItem): string | undefined => {
+  if (typeof item === 'string') {
+    return undefined;
+  }
+  if (!item.description) {
+    return undefined;
+  }
+  // If the description is the same as the name (ignoring case and whitespace),
+  // then it's not really providing any additional context, so we can ignore it.
+  if (item.description.trim().toLowerCase() === item.name.trim().toLowerCase()) {
+    return undefined;
+  }
+  return item.description;
+}
 
 
 /**
@@ -42,18 +66,12 @@ export const getItemName = (item: SemanticItem): string => {
  * @returns A string representation of the item suitable for inclusion in the prompt.
  */
 export const itemToPromptString = (item: SemanticItem): string => {
-  if (typeof item === 'string') {
-    return `- ${JSON.stringify(item)}`;
-  } else {
-    let s = `- ${JSON.stringify(item.name)}`;
-    if (
-      item.description &&
-      item.description.trim().toLowerCase() !== item.name.trim().toLowerCase()
-    ) {
-      s += ` (details: ${JSON.stringify(item.description)})`;
-    }
-    return s;
+  let s = `- ${JSON.stringify(getItemName(item))}`;
+  const description = getItemDescription(item);
+  if (description) {
+    s += ` (details: ${JSON.stringify(description)})`;
   }
+  return s;
 };
 
 /**
