@@ -30,3 +30,23 @@ export interface OcrTablesFromFile {
 export interface OcrMultiFilesTableExtraction {
   [filePath: string]: OcrTablesFromFile;
 }
+
+/**
+ * A utility function to extract all metadata from the OCR extraction results.
+ * @param extractedData - The OCR extraction results from multiple files
+ * @param includeEmpty - Whether to include files with empty metadata
+ * @returns A mapping of file paths to their corresponding metadata records
+ */
+export const getAllOcrExtractedMetadatas = (
+  extractedData: OcrMultiFilesTableExtraction,
+  includeEmpty: boolean = false
+): Record<string, Record<string, string>> => {
+  const retval: Record<string, Record<string, string>> = {};
+  for (const [filePath, ocrData] of Object.entries(extractedData)) {
+    if (!includeEmpty && (!ocrData.metadata || Object.keys(ocrData.metadata).length === 0)) {
+      continue;
+    }
+    retval[filePath] = ocrData.metadata || {};
+  }
+  return retval;
+};

@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import OpenAI from 'openai';
 import { pdfToPng } from 'pdf-to-png-converter';
 
-import { OcrExtractedTable, OcrMultiFilesTableExtraction, OcrTablesFromFile } from './types.js';
+import { OcrExtractedTable, OcrMultiFilesTableExtraction, OcrTablesFromFile } from './records.js';
 
 /**
  * Normalizes a string by trimming whitespace, converting to lowercase,
@@ -64,29 +64,10 @@ const _buildTableNormalizedRowStringMap = (
 };
 
 
-/**
- * A utility function to extract all metadata from the OCR extraction results.
- * @param extractedData - The OCR extraction results from multiple files
- * @param includeEmpty - Whether to include files with empty metadata
- * @returns A mapping of file paths to their corresponding metadata records
- */
-export const getAllOcrExtractedMetadatas = (
-  extractedData: OcrMultiFilesTableExtraction,
-  includeEmpty: boolean = false
-): Record<string, Record<string, string>> => {
-  const retval: Record<string, Record<string, string>> = {};
-  for (const [filePath, ocrData] of Object.entries(extractedData)) {
-    if (!includeEmpty && (!ocrData.metadata || Object.keys(ocrData.metadata).length === 0)) {
-      continue;
-    }
-    retval[filePath] = ocrData.metadata || {};
-  }
-  return retval;
-};
 
 /**
  * Converts all pages of a PDF file into PNG image buffers.
- * Uses high-quality viewport scaling (5.0x) for improved OCR accuracy.
+ * Uses high-quality viewport scaling (3.0x) for improved OCR accuracy.
  *
  * @param pdfPath - Absolute path to the PDF file to convert
  * @returns Array of PNG image buffers, one per page
@@ -96,7 +77,7 @@ export const renderPdfPagesToPngBuffers = async (pdfPath: string): Promise<Buffe
   const pngPages = await pdfToPng(pdfPath, {
     disableFontFace: true,
     useSystemFonts: false,
-    viewportScale: 5.0, // It keeps mistaking "1" for "4" at 2.0x; higher scale seems to fix that.
+    viewportScale: 3.0, // It keeps mistaking "1" for "4" at 2.0x; higher scale seems to fix that.
   });
 
   return pngPages
