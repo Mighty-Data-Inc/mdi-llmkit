@@ -1,8 +1,211 @@
 import { GPT_MODEL_VISION } from '../gptApi/functions.js';
-import { GptConversation } from '../gptApi/gptConversation.js';
+import {
+  ConversationMessage,
+  GptConversation,
+} from '../gptApi/gptConversation.js';
 import { JSONSchemaFormat } from '../gptApi/jsonSchemaFormat.js';
 import { OcrExtractedTable } from './records.js';
 import { OpenAI } from 'openai';
+
+/**
+ * Builds the initial user message payload for a vision-capable GPT request.
+ *
+ * Converts a PNG page buffer to a base64 data URL and combines it with a
+ * text prompt so both text and image can be sent together in one message.
+ * This is used to seed a `GptConversation` with the page image in the first
+ * prompt.
+ *
+ * @param pagePngBuffer PNG image bytes for a single document page.
+ * @param messageText Text instruction/context paired with the page image.
+ * @returns A user-role message object containing `input_text` and `input_image` content items.
+ */
+const _generateGptMessageWithImage = (
+  pagePngBuffer: Buffer,
+  messageText: string
+): ConversationMessage => {
+  const imgbuf = pagePngBuffer;
+  const imgBase64 = imgbuf.toString('base64');
+  const imgDataUrl = `data:image/png;base64,${imgBase64}`;
+
+  // We'll just create the first message manually so that we can
+  // include the image as an input in the very first prompt.
+  const gptMsgWithImage = {
+    role: 'user',
+    content: [
+      {
+        type: 'input_text',
+        text: messageText,
+      },
+      {
+        type: 'input_image',
+        image_url: imgDataUrl,
+        detail: 'high',
+      },
+    ],
+  };
+
+  return gptMsgWithImage;
+};
+
+/**
+ * Initializes a `GptConversation` for OCR table detection on a single page.
+ *
+ * Seeds the conversation with a user message that includes the page image,
+ * adds a base developer instruction to scan for tabular data, and optionally
+ * appends caller-provided user instructions.
+ *
+ * @param openaiClient OpenAI client used by the conversation.
+ * @param pagePngBuffer PNG bytes for the page being analyzed.
+ * @param pagePositionInDocument Optional page position hint (`first`, `middle`, or `last`) used to tailor the initial page-context text.
+ * @param additionalInstructions Optional user-level instructions to append to the conversation.
+ * @returns A preconfigured `GptConversation` ready for OCR-table prompts/submissions.
+ */
+const _startOcrTableConversation = (
+  openaiClient: OpenAI,
+  pagePngBuffer: Buffer,
+  pagePositionInDocument?: 'first' | 'last' | 'middle',
+  additionalInstructions?: string
+): GptConversation => {
+  const messageText =
+    pagePositionInDocument === 'first'
+      ? `Here is the first page of a PDF document.`
+      : pagePositionInDocument === 'last'
+        ? `Here is the last page of a PDF document.`
+        : pagePositionInDocument === 'middle'
+          ? `Here is a from the middle of a PDF document.`
+          : `Here is a page of a PDF document.`;
+  const gptMsgWithImage = _generateGptMessageWithImage(
+    pagePngBuffer,
+    messageText
+  );
+
+  const convo = new GptConversation([gptMsgWithImage], {
+    openaiClient,
+    model: GPT_MODEL_VISION,
+  });
+  convo.addDeveloperMessage(`
+We're scanning this page for **tabular data**.
+
+Tabular data -- that is, data organized into tables -- is recognizable by a layout
+where text is arranged in rows and columns.
+
+Tables often have borders or shading to separate cells, but not always.
+
+Tables are also often preceded by a title or heading that describes the content of the table.
+This title or heading can be very helpful in identifying and understanding the table.
+
+Another distinct telltale sign of a table is a row of column headers, which often appear
+at the top of the table and provide context for the data below.
+
+Tables can vary widely in their appearance and structure, so use your best judgment
+to identify potential tables based on the overall layout and organization of the page.
+`);
+
+  if (additionalInstructions) {
+    convo.addUserMessage(additionalInstructions);
+  }
+
+  return convo;
+};
+
+/**
+ * Identifies the tables visible on a single PDF page image.
+ *
+ * Starts a vision-enabled OCR conversation for the page, asks the model to
+ * enumerate tables that start on this page, and requests structured JSON
+ * containing table names and descriptions.
+ *
+ * @param openaiClient OpenAI client used to submit the OCR conversation.
+ * @param pagePngBuffer PNG bytes for the page being analyzed.
+ * @param pagePositionInDocument Optional page position hint (`first`, `middle`, or `last`) used for initial context.
+ * @param firstTableOnPage Optional table name to treat as the first table that starts on this page (used to ignore overflow rows from a prior page).
+ * @param additionalInstructions Optional extra user instructions to guide table detection.
+ * @returns List of extracted-table objects for the page, populated from LLM output with names and descriptions plus default values for other fields.
+ */
+export const ocrIdentifyTablesOnPage = async (
+  openaiClient: OpenAI,
+  pagePngBuffer: Buffer,
+  pagePositionInDocument?: 'first' | 'last' | 'middle',
+  firstTableOnPage?: string,
+  additionalInstructions?: string
+): Promise<OcrExtractedTable[]> => {
+  const convo = _startOcrTableConversation(
+    openaiClient,
+    pagePngBuffer,
+    pagePositionInDocument,
+    additionalInstructions
+  );
+
+  convo.addDeveloperMessage(`
+Does this page contain any tables? Does it have just one table, or multiple tables?
+What are the tables called? What fields do they contain? Discuss.
+
+Don't worry about actually parsing the data in the tables yet. 
+
+**DO** pay attention to tables that *start* on this page, even if they continue
+onto later pages. This includes tables that might have their title or header on this page
+(perhaps at the bottom of the page, for example), but their data continues onto later pages.
+`);
+  if (firstTableOnPage) {
+    convo.addUserMessage(`
+Start with the table that we're calling "${firstTableOnPage}".
+This is the first table that starts on the page.
+If there are some table rows above this table, ignore them; they're from some prior table
+that started on the previous page.
+`);
+  }
+
+  await convo.submit(undefined, undefined, {
+    jsonResponse: JSONSchemaFormat(
+      'ocr_enumerate_tables_on_page',
+      {
+        discussion: [
+          String,
+          `A thorough and detailed discussion about the tables you can see on this page, ` +
+          `including their structure, titles, headers, content, and any relationships ` +
+          `between them. This discussion is purely for your own benefit, to provide you ` +
+          `with context to organize your thoughts before you start extracting data.`,
+        ],
+        tables: [
+          {
+            name: [
+              String,
+              `The name, title, or heading of the table. If the table doesn't have ` +
+                `any such name (or if the name is unclear or not present on this page), ` +
+                `provide some descriptive identifier that will help us refer to this ` +
+                `table later.`,
+            ],
+            description: [
+              String,
+              `A brief description of the table's purpose.`,
+            ],
+          },
+        ],
+      },
+      `A list of the tables we can see on this page, ` +
+        `along with their names and descriptions. Can be empty ` +
+        `if we have determined that there are no tables on this page.`
+    ),
+  });
+
+  const identifiedTables = convo.getLastReplyDictField(
+    'tables',
+    []
+  ) as Array<{ name: string; description: string }>;
+
+  const tablesOnThisPage: OcrExtractedTable[] = identifiedTables.map((table) => ({
+    name: table.name,
+    description: table.description,
+    columns: [],
+    page_start: 0,
+    page_end: 0,
+    data: [],
+    aggregations: '',
+    notes: '',
+  }));
+
+  return tablesOnThisPage;
+};
 
 /**
  * Extracts tabular data from PNG image buffers using AI-powered OCR.
@@ -99,32 +302,6 @@ onto later pages. This includes tables that might have their title or header on 
 but their data continues onto later pages.
 `);
     await convoAboutPage.submit();
-
-    await convoAboutPage.submit(undefined, undefined, {
-      jsonResponse: JSONSchemaFormat(
-        'ocr_enumerate_tables_on_page',
-        {
-          tables: [
-            {
-              name: [
-                String,
-                `The name, title, or heading of the table. If the table doesn't have ` +
-                  `any such name (or if the name is unclear or not present on this page), ` +
-                  `provide some descriptive identifier that will help us refer to this ` +
-                  `table later.`,
-              ],
-              description: [
-                String,
-                `A brief description of the table's purpose.`,
-              ],
-            },
-          ],
-        },
-        `A list of the tables we can see on this page, ` +
-          `along with their names and descriptions. Can be empty ` +
-          `if we have determined that there are no tables on this page.`
-      ),
-    });
 
     const tablesOnThisPage = convoAboutPage.getLastReplyDictField(
       'tables',
@@ -329,7 +506,6 @@ Discuss.
         tableRowExtractionSchema.required.push(columnName);
       }
 
-
       convoAboutCurrentTable.addDeveloperMessage(`
 Look specifically at the table called "${table.name}" and extract all of its data rows. 
 
@@ -355,7 +531,10 @@ CAREFUL: Be particularly mindful about individual rows that might be split acros
           `Extract all of the data rows from the table called "${table.name}".`
         ),
       });
-      table.data = convoAboutCurrentTable.getLastReplyDictField('table_rows', []) as Array<Record<string, string>>;
+      table.data = convoAboutCurrentTable.getLastReplyDictField(
+        'table_rows',
+        []
+      ) as Array<Record<string, string>>;
 
       console.log(`  Extracted ${table.data.length} data rows.`);
 
@@ -372,13 +551,12 @@ and we *do* need to read them if they exist.
             discussion: [
               String,
               `Talk through whether there are any aggregation or summary data in the ` +
-              `table called "${table.name}". Describe what it is and what it says, ` +
-              `if you find any. This is for your own benefit to help you understand ` +
-              `the table; it won't be included in the final output.`,
+                `table called "${table.name}". Describe what it is and what it says, ` +
+                `if you find any. This is for your own benefit to help you understand ` +
+                `the table; it won't be included in the final output.`,
             ],
             aggregation_data: [
-              String
-                `The extracted aggregation data, such as totals, averages, counts, or similar ` +
+              String`The extracted aggregation data, such as totals, averages, counts, or similar ` +
                 `summary data, presented in textual form. If no such data is present, ` +
                 `simply leave this as a blank string.`,
             ],
@@ -386,53 +564,41 @@ and we *do* need to read them if they exist.
           `Check for any aggregation data in the table called "${table.name}".`
         ),
       });
-      table.aggregations = convoAboutCurrentTable.getLastReplyDictField('aggregation_data', '') as string;
+      table.aggregations = convoAboutCurrentTable.getLastReplyDictField(
+        'aggregation_data',
+        ''
+      ) as string;
 
-      messagesForTable.push({
-        role: 'developer',
-        content: `
+      convoAboutCurrentTable.addDeveloperMessage(`
 We've now extracted the table's title, description, columns, data rows, and any aggregation
 data. Finally, please provide any additional notes or observations about this table that
 might be necessary for a downstream consumer of this data to know. This might include
 comments about data quality, possible ambiguities, or any assumptions you had to make
 during the extraction process.
 If you have no additional notes, simply respond with a blank string.
-`,
-      });
+`);
+      convoAboutCurrentTable.submit();
 
-      llmResponse = await getOpenAIClient().responses.create({
-        model: GPT_MODEL_VISION,
-        input: messagesForTable,
-        text: {
-          format: {
-            type: 'json_schema',
-            name: 'ocr_write_table_extraction_notes',
-            description: `
-Any notes you feel you should provide about the table called "${table.name}",
-that might be useful for future interpretation or analysis.
-`,
-            schema: {
-              type: 'object',
-              properties: {
-                extraction_notes: {
-                  type: 'string',
-                  description:
-                    `Any additional notes, comments, or observations about the table ` +
-                    `that might be useful for a downstream consumer of this data. ` +
-                    `If there are no such notes, simply provide a blank string.`,
-                },
-              },
-              required: ['extraction_notes'],
-              additionalProperties: false,
-            },
-            strict: true,
+      convoAboutCurrentTable.submit(undefined, undefined, {
+        jsonResponse: JSONSchemaFormat(
+          'ocr_write_table_extraction_notes',
+
+          {
+            extraction_notes: [
+              String,
+              `Any additional notes, comments, or observations about the table ` +
+                `that might be useful for a downstream consumer of this data. ` +
+                `If there are no such notes, simply provide a blank string.`,
+            ]
           },
-        },
+          `Any notes you feel you should provide about the table called "${table.name}", ` +
+            `that might be useful for future interpretation or analysis.`
+        )
       });
-      llmReply = llmResponse.output_text;
-      messagesForTable.push({ role: 'assistant', content: llmReply });
-      llmReplyObj = parseJSONfromAIResponse(llmReply);
-      table.notes = llmReplyObj.extraction_notes;
+      table.notes = convoAboutCurrentTable.getLastReplyDictField(
+        'extraction_notes',
+        ''
+      ) as string;
 
       table.page_end = currentPageIndex + 1;
     }

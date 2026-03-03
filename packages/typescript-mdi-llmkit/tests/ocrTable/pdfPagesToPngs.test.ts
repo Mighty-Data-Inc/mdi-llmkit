@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 describe('renderPdfPagesToPngBuffers', () => {
   it('matches fixture png outputs for each rendered page', async () => {
     const fixturesDir = path.resolve(__dirname, 'fixtures');
-    const fixturePdfPath = path.join(fixturesDir, 'school-supplies-bill-of-sale.pdf');
+    const fixturePdfPath = path.join(fixturesDir, 'school-supplies-BOS-14pt.pdf');
 
     await readFile(fixturePdfPath);
 
@@ -20,7 +20,7 @@ describe('renderPdfPagesToPngBuffers', () => {
 
     const fixtureFiles = await readdir(fixturesDir);
     const expectedPngFiles = fixtureFiles
-      .filter(fileName => /^school-supplies-bill-of-sale\.page-\d+\.png$/i.test(fileName))
+      .filter(fileName => /^school-supplies-BOS-14pt-page-\d+\.png$/i.test(fileName))
       .sort((left, right) => {
         const leftPage = Number(left.match(/page-(\d+)\.png$/i)?.[1] ?? '0');
         const rightPage = Number(right.match(/page-(\d+)\.png$/i)?.[1] ?? '0');
