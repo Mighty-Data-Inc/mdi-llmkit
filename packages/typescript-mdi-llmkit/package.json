@@ -17,14 +17,6 @@
       "types": "./dist/src/index.d.ts",
       "import": "./dist/src/index.js"
     },
-    "./gptApi": {
-      "types": "./dist/src/gptApi/index.d.ts",
-      "import": "./dist/src/gptApi/index.js"
-    },
-    "./jsonSurgery": {
-      "types": "./dist/src/jsonSurgery/index.d.ts",
-      "import": "./dist/src/jsonSurgery/index.js"
-    },
     "./semanticMatch": {
       "types": "./dist/src/semanticMatch/index.d.ts",
       "import": "./dist/src/semanticMatch/index.js"

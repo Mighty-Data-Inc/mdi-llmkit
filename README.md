@@ -60,7 +60,7 @@ console.log(reply);
 
 ### Python
 
-From `packages/python-mdi-llmkit`, activate the package venv and run the jsonSurgery tests:
+From `packages/python-mdi-llmkit`, activate the package venv and run the tests:
 
 ```powershell
 .\venv\Scripts\Activate.ps1
