@@ -5,8 +5,8 @@ import time
 
 from typing import Any, Callable, NotRequired, TypedDict
 
-from mdi_llmkit.gpt_api.functions import OpenAIClientLike
-from mdi_llmkit.gpt_api.gpt_conversation import GptConversation
+from mightydatainc_gpt_conversation import OpenAIClientLike
+from mightydatainc_gpt_conversation import GptConversation
 
 from .placemarked_json import navigate_to_json_path, placemarked_json_stringify
 

@@ -28,7 +28,7 @@ import {
   navigateToJSONPath,
   placemarkedJSONStringify,
 } from './placemarkedJSON.js';
-import { GptConversation } from '../gptApi/gptConversation.js';
+import { GptConversation } from '@mightydatainc/gpt-conversation';
 
 const JSON_SCHEMA_ANYOF_PRIMITIVE_OR_EMPTY = [
   {
