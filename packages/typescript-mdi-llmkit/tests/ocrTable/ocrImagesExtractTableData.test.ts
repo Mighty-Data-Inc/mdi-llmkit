@@ -78,7 +78,7 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
     expect(tables[1]?.name).toBe('Classroom Purchases - Ms. Tessa Monroe (Room 2D)');
   }, 180000);
 
-  it('does not get distracted by next-page context on 14pt page 1', async () => {
+  it('does not get distracted by next-page content', async () => {
     const fixturesDir = path.resolve(__dirname, 'fixtures');
     const pageOnePngPath = path.join(fixturesDir, 'school-supplies-BOS-14pt-page-1.png');
     const pageTwoPngPath = path.join(fixturesDir, 'school-supplies-BOS-14pt-page-2.png');
@@ -97,5 +97,68 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
 
     expect(tables).toHaveLength(1);
     expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Elena Alvarez (Room 3A)');
+  }, 180000);
+
+  it('ignores top-of-page overrun rows when previous page ended with a table', async () => {
+    const fixturesDir = path.resolve(__dirname, 'fixtures');
+    const pageTwoPngPath = path.join(fixturesDir, 'school-supplies-BOS-11pt-page-2.png');
+    const pageTwoBuffer = await readFile(pageTwoPngPath);
+
+    const tables = await ocrIdentifyTablesOnPage(
+      createClient(),
+      pageTwoBuffer,
+      undefined,
+      true
+    );
+
+    expect(tables).toHaveLength(1);
+    expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Priya Nandakumar (Room 5C)');
+  }, 180000);
+
+  it('treats top-of-page rows as a new table when previous page did not end with a table', async () => {
+    const fixturesDir = path.resolve(__dirname, 'fixtures');
+    const pageTwoPngPath = path.join(fixturesDir, 'school-supplies-BOS-11pt-page-2.png');
+    const pageTwoBuffer = await readFile(pageTwoPngPath);
+
+    const tables = await ocrIdentifyTablesOnPage(
+      createClient(),
+      pageTwoBuffer,
+      undefined,
+      false
+    );
+
+    expect(tables).toHaveLength(2);
+    expect(tables[1]?.name).toBe('Classroom Purchases - Ms. Priya Nandakumar (Room 5C)');
+  }, 180000);
+
+  it('uses first-table anchor to isolate the intended table even when prior-page flag says false', async () => {
+    const fixturesDir = path.resolve(__dirname, 'fixtures');
+    const pageTwoPngPath = path.join(fixturesDir, 'school-supplies-BOS-11pt-page-2.png');
+    const pageTwoBuffer = await readFile(pageTwoPngPath);
+
+    /*
+      This test intentionally creates a contradictory setup to verify parameter priority:
+
+      - The page starts with overrun rows from a table that began on the previous page.
+      - We explicitly set didPreviousPageEndWithTable = false, which would normally bias
+        the model toward treating top-of-page rows as a NEW table.
+      - We also provide nameOfFirstTableOnPage = "Classroom Purchases - Ms. Priya Nandakumar (Room 5C)",
+        which is an explicit anchor telling the model where the first *new* table on this page starts.
+
+      Expected behavior:
+      The explicit first-table anchor should win over the less reliable prior-page heuristic.
+      Therefore, the overrun rows at the top should be ignored and only Priya's table should
+      be returned.
+    */
+    const tables = await ocrIdentifyTablesOnPage(
+      createClient(),
+      pageTwoBuffer,
+      undefined,
+      false,
+      'Classroom Purchases - Ms. Priya Nandakumar (Room 5C)'
+    );
+
+    expect(tables).toHaveLength(1);
+    expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Priya Nandakumar (Room 5C)');
   }, 180000);
 });
