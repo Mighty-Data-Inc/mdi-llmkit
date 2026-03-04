@@ -64,7 +64,8 @@ const _startOcrTableConversation = (
   openaiClient: OpenAI,
   pagePngBuffer: Buffer,
   pagePositionInDocument?: 'first' | 'last' | 'middle',
-  additionalInstructions?: string
+  additionalInstructions?: string,
+  nextPagePngBuffer?: Buffer
 ): GptConversation => {
   const messageText =
     pagePositionInDocument === 'first'
@@ -101,6 +102,23 @@ Tables can vary widely in their appearance and structure, so use your best judgm
 to identify potential tables based on the overall layout and organization of the page.
 `);
 
+  if (nextPagePngBuffer) {
+    const nextPageMessageText = `
+In order to handle an edge case, we'll now also show you the *next* page of the document.
+
+We are not directly interested in this next page, but on very rare occasions you might get
+a table whose title appears at the bottom of the current page, but whose data appears at
+the top of the next page. When this happens, all you see at the bottom of the current page
+is some random orphaned title, so you'll need to see the next page in order to see if that
+title is actually the title of a table.
+`;
+    const nextPageGptMsgWithImage = _generateGptMessageWithImage(
+      nextPagePngBuffer,
+      nextPageMessageText
+    );
+    convo.addUserMessage(nextPageGptMsgWithImage);
+  }
+
   if (additionalInstructions) {
     convo.addUserMessage(additionalInstructions);
   }
@@ -118,7 +136,7 @@ to identify potential tables based on the overall layout and organization of the
  * @param openaiClient OpenAI client used to submit the OCR conversation.
  * @param pagePngBuffer PNG bytes for the page being analyzed.
  * @param pagePositionInDocument Optional page position hint (`first`, `middle`, or `last`) used for initial context.
- * @param firstTableOnPage Optional table name to treat as the first table that starts on this page (used to ignore overflow rows from a prior page).
+ * @param nameOfFirstTableOnPage Optional table name to treat as the first table that starts on this page (used to ignore overflow rows from a prior page).
  * @param additionalInstructions Optional extra user instructions to guide table detection.
  * @returns List of extracted-table objects for the page, populated from LLM output with names and descriptions plus default values for other fields.
  */
@@ -126,19 +144,25 @@ export const ocrIdentifyTablesOnPage = async (
   openaiClient: OpenAI,
   pagePngBuffer: Buffer,
   pagePositionInDocument?: 'first' | 'last' | 'middle',
-  firstTableOnPage?: string,
-  additionalInstructions?: string
+  didPreviousPageEndWithTable?: boolean,
+  nameOfFirstTableOnPage?: string,
+  additionalInstructions?: string,
+  nextPagePngBuffer?: Buffer
 ): Promise<OcrExtractedTable[]> => {
   const convo = _startOcrTableConversation(
     openaiClient,
     pagePngBuffer,
     pagePositionInDocument,
-    additionalInstructions
+    additionalInstructions,
+    nextPagePngBuffer
   );
 
   convo.addDeveloperMessage(`
 Does this page contain any tables? Does it have just one table, or multiple tables?
 What are the tables called? What fields do they contain? Discuss.
+
+We are specifically only interested in tables that *start* on this page. If a table is a
+continuation of a previous table that started on a previous page, we don't care about it.
 
 Don't worry about actually parsing the data in the tables yet. 
 
@@ -146,9 +170,25 @@ Don't worry about actually parsing the data in the tables yet.
 onto later pages. This includes tables that might have their title or header on this page
 (perhaps at the bottom of the page, for example), but their data continues onto later pages.
 `);
-  if (firstTableOnPage) {
+
+  if (didPreviousPageEndWithTable) {
     convo.addUserMessage(`
-Start with the table that we're calling "${firstTableOnPage}".
+NOTE: The previous page ended with a table. It's possible that this table continues onto this page.
+If you see some table data at the top of this page that doesn't have a table name, it might
+be from the previous page. We only care about tables that *start* on this page, so you should
+ignore any table that looks like it's continued from the previous page.
+    `);
+  } else {
+    convo.addUserMessage(`
+NOTE: As far as we know, the previous page (if there was one) did *not* end with a table. That
+means that, if you see some table data at the top of this page, then it must be from a *new*
+table that starts on this page. You should include it in your results.
+    `);
+  }
+
+  if (nameOfFirstTableOnPage) {
+    convo.addUserMessage(`
+Start with the table that we're calling "${nameOfFirstTableOnPage}".
 This is the first table that starts on the page.
 If there are some table rows above this table, ignore them; they're from some prior table
 that started on the previous page.
@@ -162,9 +202,27 @@ that started on the previous page.
         discussion: [
           String,
           `A thorough and detailed discussion about the tables you can see on this page, ` +
-          `including their structure, titles, headers, content, and any relationships ` +
-          `between them. This discussion is purely for your own benefit, to provide you ` +
-          `with context to organize your thoughts before you start extracting data.`,
+            `including their structure, titles, headers, content, and any relationships ` +
+            `between them. This discussion is purely for your own benefit, to provide you ` +
+            `with context to organize your thoughts before you start extracting data.`,
+        ],
+        discuss_does_page_start_with_untitled_table_data: [
+          String,
+          `Does the current page start with data from a table that doesn't have a title? ` +
+            `If so, do you think it's from a table that started on a previous page, or is it ` +
+            `a new table that starts on this page? Discuss.`,
+        ],
+        discuss_does_page_end_with_orphaned_title: [
+          String,
+          `Does the current page end with a title that doesn't seem to belong to any table ` +
+            `on this page? If so, do you think it's the title of a table that continues on the ` +
+            `next page? Discuss.`,
+        ],
+        discuss_tables_to_return: [
+          String,
+          `A discussion about which tables should be returned in the final output, ` +
+            `taking into account our observations about the current page and any additional ` +
+            `instructions we may be following.`,
         ],
         tables: [
           {
@@ -173,7 +231,10 @@ that started on the previous page.
               `The name, title, or heading of the table. If the table doesn't have ` +
                 `any such name (or if the name is unclear or not present on this page), ` +
                 `provide some descriptive identifier that will help us refer to this ` +
-                `table later.`,
+                `table later. If the table *does* have a title, write that title here ` +
+                `*exactly* as it appears in the source image, without notes, annotations, ` +
+                `or embellishments. There'll be a chance to provide additional context later; ` +
+                `for now, we need the *exact* text if it's available.`,
             ],
             description: [
               String,
@@ -181,28 +242,62 @@ that started on the previous page.
             ],
           },
         ],
+        orphaned_table_title: [
+          String,
+          `An orphaned table title is the title of a table whose title appears at the bottom ` +
+            `of the page, but the table's contents are on the next page. If this page ends with ` +
+            `an orphaned table title, please provide it here. If not, leave this field empty.`,
+        ],
       },
-      `A list of the tables we can see on this page, ` +
-        `along with their names and descriptions. Can be empty ` +
+      `An identification of the tables that start this page. Can be empty ` +
         `if we have determined that there are no tables on this page.`
     ),
   });
 
-  const identifiedTables = convo.getLastReplyDictField(
-    'tables',
-    []
-  ) as Array<{ name: string; description: string }>;
+  const identifiedTables = convo.getLastReplyDictField('tables', []) as Array<{
+    name: string;
+    description: string;
+  }>;
 
-  const tablesOnThisPage: OcrExtractedTable[] = identifiedTables.map((table) => ({
-    name: table.name,
-    description: table.description,
-    columns: [],
-    page_start: 0,
-    page_end: 0,
-    data: [],
-    aggregations: '',
-    notes: '',
-  }));
+  const tablesOnThisPage: OcrExtractedTable[] = identifiedTables.map(
+    (table) => ({
+      name: table.name,
+      description: table.description,
+      columns: [],
+      page_start: 0,
+      page_end: 0,
+      data: [],
+      aggregations: '',
+      notes: '',
+    })
+  );
+
+  const orphanedTableTitle = convo.getLastReplyDictField(
+    'orphaned_table_title',
+    ''
+  ) as string;
+
+  if (orphanedTableTitle) {
+    // Check if the last table in the tablesOnThisPage array is already the orphaned table.
+    if (
+      tablesOnThisPage.length > 0 &&
+      tablesOnThisPage[tablesOnThisPage.length - 1].name === orphanedTableTitle
+    ) {
+      // The last table is already the orphaned table, no need to add it again.
+    } else {
+      // Add the orphaned table title as a new table with no data.
+      tablesOnThisPage.push({
+        name: orphanedTableTitle,
+        description: `NOTE: This table's title was orphaned on one page, but its contents are on a subsequent page.`,
+        columns: [],
+        page_start: 0,
+        page_end: 0,
+        data: [],
+        aggregations: '',
+        notes: '',
+      });
+    }
+  }
 
   return tablesOnThisPage;
 };
@@ -589,11 +684,11 @@ If you have no additional notes, simply respond with a blank string.
               `Any additional notes, comments, or observations about the table ` +
                 `that might be useful for a downstream consumer of this data. ` +
                 `If there are no such notes, simply provide a blank string.`,
-            ]
+            ],
           },
           `Any notes you feel you should provide about the table called "${table.name}", ` +
             `that might be useful for future interpretation or analysis.`
-        )
+        ),
       });
       table.notes = convoAboutCurrentTable.getLastReplyDictField(
         'extraction_notes',
