@@ -35,7 +35,10 @@ you must transcribe it as <number><letter>.
 describe('ocrIdentifyTablesOnPage (live API)', () => {
   it('can detect two tables on a page when that is all that is on the page', async () => {
     const fixturesDir = path.resolve(__dirname, 'fixtures');
-    const pageThreePngPath = path.join(fixturesDir, 'school-supplies-BOS-11pt-page-3.png');
+    const pageThreePngPath = path.join(
+      fixturesDir,
+      'school-supplies-BOS-11pt-page-3.png'
+    );
     const pageThreeBuffer = await readFile(pageThreePngPath);
 
     const tables = await ocrIdentifyTablesOnPage(
@@ -48,14 +51,20 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
     );
 
     expect(tables).toHaveLength(2);
-    expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Tessa Monroe (Room 2D)');
-    expect(tables[1]?.name).toBe('Classroom Purchases - Mr. Omar Whitfield (Room 1A)');
+    expect(tables[0]?.name).toBe(
+      'Classroom Purchases - Ms. Tessa Monroe (Room 2D)'
+    );
+    expect(tables[1]?.name).toBe(
+      'Classroom Purchases - Mr. Omar Whitfield (Room 1A)'
+    );
   }, 180000);
-
 
   it('can detect two table names even when there is other text on the page', async () => {
     const fixturesDir = path.resolve(__dirname, 'fixtures');
-    const pageOnePngPath = path.join(fixturesDir, 'school-supplies-BOS-11pt-page-1.png');
+    const pageOnePngPath = path.join(
+      fixturesDir,
+      'school-supplies-BOS-11pt-page-1.png'
+    );
     const pageOneBuffer = await readFile(pageOnePngPath);
 
     const tables = await ocrIdentifyTablesOnPage(
@@ -68,14 +77,23 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
     );
 
     expect(tables).toHaveLength(2);
-    expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Elena Alvarez (Room 3A)');
-    expect(tables[1]?.name).toBe('Classroom Purchases - Mr. Jonah Reed (Room 4B)');
+    expect(tables[0]?.name).toBe(
+      'Classroom Purchases - Ms. Elena Alvarez (Room 3A)'
+    );
+    expect(tables[1]?.name).toBe(
+      'Classroom Purchases - Mr. Jonah Reed (Room 4B)'
+    );
   }, 180000);
 
   it('detects one embedded table within dense two-column prose', async () => {
     const fixturesDir = path.resolve(__dirname, 'fixtures');
-    const wildernessProvisionsPngPath = path.join(fixturesDir, 'wilderness-provisions.png');
-    const wildernessProvisionsBuffer = await readFile(wildernessProvisionsPngPath);
+    const wildernessProvisionsPngPath = path.join(
+      fixturesDir,
+      'wilderness-provisions.png'
+    );
+    const wildernessProvisionsBuffer = await readFile(
+      wildernessProvisionsPngPath
+    );
 
     const tables = await ocrIdentifyTablesOnPage(
       createClient(),
@@ -83,13 +101,48 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
     );
 
     expect(tables).toHaveLength(1);
-    expect(tables[0]?.name).toBe('Table 7: Weekly Provisions by Terrain (Per Adventurer)');
+    expect(tables[0]?.name).toBe(
+      'Table 7: Weekly Provisions by Terrain (Per Adventurer)'
+    );
+  }, 180000);
+
+  it('detects two embedded tables within dense two-column prose', async () => {
+    const fixturesDir = path.resolve(__dirname, 'fixtures');
+    const wildernessProvisionsPngPath = path.join(
+      fixturesDir,
+      'wilderness-provisions-2table.png'
+    );
+    const wildernessProvisionsBuffer = await readFile(
+      wildernessProvisionsPngPath
+    );
+
+    const tables = await ocrIdentifyTablesOnPage(
+      createClient(),
+      wildernessProvisionsBuffer,
+      undefined,
+      undefined,
+      undefined,
+      `When you list tables, sort your tables in numerical order ` +
+        `-- e.g. "Table 2", then "Table 3", then "Table 4", etc.`
+    );
+
+    expect(tables).toHaveLength(2);
+    expect(tables[0]?.name).toBe(
+      'Table 7: Weekly Provisions by Terrain (Per Adventurer)'
+    );
+    expect(tables[1]?.name).toBe('Table 8: March Rate by Load Class');
   }, 180000);
 
   it('can read an orphaned table name', async () => {
     const fixturesDir = path.resolve(__dirname, 'fixtures');
-    const pageThreePngPath = path.join(fixturesDir, 'school-supplies-BOS-14pt-page-3.png');
-    const pageFourPngPath = path.join(fixturesDir, 'school-supplies-BOS-14pt-page-4.png');
+    const pageThreePngPath = path.join(
+      fixturesDir,
+      'school-supplies-BOS-14pt-page-3.png'
+    );
+    const pageFourPngPath = path.join(
+      fixturesDir,
+      'school-supplies-BOS-14pt-page-4.png'
+    );
     const pageThreeBuffer = await readFile(pageThreePngPath);
     const pageFourBuffer = await readFile(pageFourPngPath);
 
@@ -104,14 +157,24 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
     );
 
     expect(tables).toHaveLength(2);
-    expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Priya Nandakumar (Room 5C)');
-    expect(tables[1]?.name).toBe('Classroom Purchases - Ms. Tessa Monroe (Room 2D)');
+    expect(tables[0]?.name).toBe(
+      'Classroom Purchases - Ms. Priya Nandakumar (Room 5C)'
+    );
+    expect(tables[1]?.name).toBe(
+      'Classroom Purchases - Ms. Tessa Monroe (Room 2D)'
+    );
   }, 180000);
 
   it('does not get distracted by next-page content', async () => {
     const fixturesDir = path.resolve(__dirname, 'fixtures');
-    const pageOnePngPath = path.join(fixturesDir, 'school-supplies-BOS-14pt-page-1.png');
-    const pageTwoPngPath = path.join(fixturesDir, 'school-supplies-BOS-14pt-page-2.png');
+    const pageOnePngPath = path.join(
+      fixturesDir,
+      'school-supplies-BOS-14pt-page-1.png'
+    );
+    const pageTwoPngPath = path.join(
+      fixturesDir,
+      'school-supplies-BOS-14pt-page-2.png'
+    );
     const pageOneBuffer = await readFile(pageOnePngPath);
     const pageTwoBuffer = await readFile(pageTwoPngPath);
 
@@ -126,12 +189,17 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
     );
 
     expect(tables).toHaveLength(1);
-    expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Elena Alvarez (Room 3A)');
+    expect(tables[0]?.name).toBe(
+      'Classroom Purchases - Ms. Elena Alvarez (Room 3A)'
+    );
   }, 180000);
 
   it('ignores top-of-page overrun rows when previous page ended with a table', async () => {
     const fixturesDir = path.resolve(__dirname, 'fixtures');
-    const pageTwoPngPath = path.join(fixturesDir, 'school-supplies-BOS-11pt-page-2.png');
+    const pageTwoPngPath = path.join(
+      fixturesDir,
+      'school-supplies-BOS-11pt-page-2.png'
+    );
     const pageTwoBuffer = await readFile(pageTwoPngPath);
 
     const tables = await ocrIdentifyTablesOnPage(
@@ -144,12 +212,17 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
     );
 
     expect(tables).toHaveLength(1);
-    expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Priya Nandakumar (Room 5C)');
+    expect(tables[0]?.name).toBe(
+      'Classroom Purchases - Ms. Priya Nandakumar (Room 5C)'
+    );
   }, 180000);
 
   it('treats top-of-page rows as a new table when previous page did not end with a table', async () => {
     const fixturesDir = path.resolve(__dirname, 'fixtures');
-    const pageTwoPngPath = path.join(fixturesDir, 'school-supplies-BOS-11pt-page-2.png');
+    const pageTwoPngPath = path.join(
+      fixturesDir,
+      'school-supplies-BOS-11pt-page-2.png'
+    );
     const pageTwoBuffer = await readFile(pageTwoPngPath);
 
     const tables = await ocrIdentifyTablesOnPage(
@@ -162,12 +235,17 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
     );
 
     expect(tables).toHaveLength(2);
-    expect(tables[1]?.name).toBe('Classroom Purchases - Ms. Priya Nandakumar (Room 5C)');
+    expect(tables[1]?.name).toBe(
+      'Classroom Purchases - Ms. Priya Nandakumar (Room 5C)'
+    );
   }, 180000);
 
   it('uses first-table anchor to isolate the intended table even when prior-page flag says false', async () => {
     const fixturesDir = path.resolve(__dirname, 'fixtures');
-    const pageTwoPngPath = path.join(fixturesDir, 'school-supplies-BOS-11pt-page-2.png');
+    const pageTwoPngPath = path.join(
+      fixturesDir,
+      'school-supplies-BOS-11pt-page-2.png'
+    );
     const pageTwoBuffer = await readFile(pageTwoPngPath);
 
     /*
@@ -194,12 +272,17 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
     );
 
     expect(tables).toHaveLength(1);
-    expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Priya Nandakumar (Room 5C)');
+    expect(tables[0]?.name).toBe(
+      'Classroom Purchases - Ms. Priya Nandakumar (Room 5C)'
+    );
   }, 180000);
 
   it('obeys additionalInstructions for guidance in interpreting visual text', async () => {
     const fixturesDir = path.resolve(__dirname, 'fixtures');
-    const pageTwoPngPath = path.join(fixturesDir, 'school-supplies-BOS-11pt-page-2.png');
+    const pageTwoPngPath = path.join(
+      fixturesDir,
+      'school-supplies-BOS-11pt-page-2.png'
+    );
     const pageTwoBuffer = await readFile(pageTwoPngPath);
 
     const lettersOnlyRoomInstructions =
@@ -215,7 +298,9 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
     );
 
     expect(tables).toHaveLength(1);
-    expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Priya Nandakumar (Room SC)');
+    expect(tables[0]?.name).toBe(
+      'Classroom Purchases - Ms. Priya Nandakumar (Room SC)'
+    );
   }, 180000);
 
   it('returns no tables for an image that contains no document text', async () => {
