@@ -22,6 +22,16 @@ const createClient = (): OpenAI =>
     apiKey: OPENAI_API_KEY,
   });
 
+// Live OCR can occasionally confuse visually similar characters (for example, "5" vs "S")
+// in room labels. We provide this hint so strict exact-name assertions test table-identification
+// behavior rather than avoidable room-code transcription ambiguity.
+const ADDITIONAL_INSTRUCTIONS = `
+Classroom numbers are in <number><letter> format, e.g. A3, D9, etc.
+When performing OCR, sometimes a "5" will look like an "S" or a "2" like a "Z",
+and vice versa. However, when you see a classroom number, e.g. "Room 2D",
+you must transcribe it as <number><letter>.
+`;
+
 describe('ocrIdentifyTablesOnPage (live API)', () => {
   it('can detect two tables on a page when that is all that is on the page', async () => {
     const fixturesDir = path.resolve(__dirname, 'fixtures');
@@ -31,7 +41,10 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
     const tables = await ocrIdentifyTablesOnPage(
       createClient(),
       pageThreeBuffer,
-      undefined
+      undefined,
+      undefined,
+      undefined,
+      ADDITIONAL_INSTRUCTIONS
     );
 
     expect(tables).toHaveLength(2);
@@ -48,12 +61,29 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
     const tables = await ocrIdentifyTablesOnPage(
       createClient(),
       pageOneBuffer,
-      undefined
+      undefined,
+      undefined,
+      undefined,
+      ADDITIONAL_INSTRUCTIONS
     );
 
     expect(tables).toHaveLength(2);
     expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Elena Alvarez (Room 3A)');
     expect(tables[1]?.name).toBe('Classroom Purchases - Mr. Jonah Reed (Room 4B)');
+  }, 180000);
+
+  it('detects one embedded table within dense two-column prose', async () => {
+    const fixturesDir = path.resolve(__dirname, 'fixtures');
+    const wildernessProvisionsPngPath = path.join(fixturesDir, 'wilderness-provisions.png');
+    const wildernessProvisionsBuffer = await readFile(wildernessProvisionsPngPath);
+
+    const tables = await ocrIdentifyTablesOnPage(
+      createClient(),
+      wildernessProvisionsBuffer
+    );
+
+    expect(tables).toHaveLength(1);
+    expect(tables[0]?.name).toBe('Table 7: Weekly Provisions by Terrain (Per Adventurer)');
   }, 180000);
 
   it('can read an orphaned table name', async () => {
@@ -69,7 +99,7 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
       undefined,
       undefined,
       undefined,
-      undefined,
+      ADDITIONAL_INSTRUCTIONS,
       pageFourBuffer
     );
 
@@ -91,7 +121,7 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
       undefined,
       undefined,
       undefined,
-      undefined,
+      ADDITIONAL_INSTRUCTIONS,
       pageTwoBuffer
     );
 
@@ -108,7 +138,9 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
       createClient(),
       pageTwoBuffer,
       undefined,
-      true
+      true,
+      undefined,
+      ADDITIONAL_INSTRUCTIONS
     );
 
     expect(tables).toHaveLength(1);
@@ -124,7 +156,9 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
       createClient(),
       pageTwoBuffer,
       undefined,
-      false
+      false,
+      undefined,
+      ADDITIONAL_INSTRUCTIONS
     );
 
     expect(tables).toHaveLength(2);
@@ -155,10 +189,83 @@ describe('ocrIdentifyTablesOnPage (live API)', () => {
       pageTwoBuffer,
       undefined,
       false,
-      'Classroom Purchases - Ms. Priya Nandakumar (Room 5C)'
+      'Classroom Purchases - Ms. Priya Nandakumar (Room 5C)',
+      ADDITIONAL_INSTRUCTIONS
     );
 
     expect(tables).toHaveLength(1);
     expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Priya Nandakumar (Room 5C)');
+  }, 180000);
+
+  it('obeys additionalInstructions for guidance in interpreting visual text', async () => {
+    const fixturesDir = path.resolve(__dirname, 'fixtures');
+    const pageTwoPngPath = path.join(fixturesDir, 'school-supplies-BOS-11pt-page-2.png');
+    const pageTwoBuffer = await readFile(pageTwoPngPath);
+
+    const lettersOnlyRoomInstructions =
+      'Room numbers are always two-letter codes, e.g. ND or EE, and explicitly NOT numeric.';
+
+    const tables = await ocrIdentifyTablesOnPage(
+      createClient(),
+      pageTwoBuffer,
+      undefined,
+      true,
+      undefined,
+      lettersOnlyRoomInstructions
+    );
+
+    expect(tables).toHaveLength(1);
+    expect(tables[0]?.name).toBe('Classroom Purchases - Ms. Priya Nandakumar (Room SC)');
+  }, 180000);
+
+  it('returns no tables for an image that contains no document text', async () => {
+    const fixturesDir = path.resolve(__dirname, 'fixtures');
+    const phoenixPngPath = path.join(fixturesDir, 'phoenix.png');
+    const phoenixBuffer = await readFile(phoenixPngPath);
+
+    const tables = await ocrIdentifyTablesOnPage(
+      createClient(),
+      phoenixBuffer,
+      undefined,
+      undefined,
+      undefined,
+      ADDITIONAL_INSTRUCTIONS
+    );
+
+    expect(tables).toEqual([]);
+  }, 180000);
+
+  it('returns no tables for non-tabular text content', async () => {
+    const fixturesDir = path.resolve(__dirname, 'fixtures');
+    const dirtyWisconsinPngPath = path.join(fixturesDir, 'dirty-wisconsin.png');
+    const dirtyWisconsinBuffer = await readFile(dirtyWisconsinPngPath);
+
+    const tables = await ocrIdentifyTablesOnPage(
+      createClient(),
+      dirtyWisconsinBuffer,
+      undefined,
+      undefined,
+      undefined,
+      ADDITIONAL_INSTRUCTIONS
+    );
+
+    expect(tables).toEqual([]);
+  }, 180000);
+
+  it('returns no tables for dense prose text content', async () => {
+    const fixturesDir = path.resolve(__dirname, 'fixtures');
+    const annaKareninaPngPath = path.join(fixturesDir, 'annakarenina.png');
+    const annaKareninaBuffer = await readFile(annaKareninaPngPath);
+
+    const tables = await ocrIdentifyTablesOnPage(
+      createClient(),
+      annaKareninaBuffer,
+      undefined,
+      undefined,
+      undefined,
+      ADDITIONAL_INSTRUCTIONS
+    );
+
+    expect(tables).toEqual([]);
   }, 180000);
 });
