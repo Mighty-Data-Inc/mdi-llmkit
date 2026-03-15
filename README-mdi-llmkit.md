@@ -12,7 +12,7 @@ Consider a few actual field cases that Mighty Data, Inc. enountered with real-wo
 
 - An invoice system for home renovation projects tried to order **5,000 buckets of beige paint**, when what the user meant was enough paint to cover **5,000 square feet of interior wall**.  
 - A residential property listing claimed that a single-family home had **212 bathrooms** because someone typed **“2 1/2”**.  
-- A mining company needed to avoid violating a lein on **“the 500-acre square at the northwestern corner of the Johnson family farm,”** requiring contextual reasoning to determine the actual geographic location being referenced and find it on a map using objectively discernible latitude and longitude coordinates.
+- A mining company needed to avoid violating a lein on **“the 10-acre square at the northwestern corner of the Johnson family farm,”** requiring contextual reasoning to determine the actual geographic location being referenced and find it on a map using objectively discernible latitude and longitude coordinates.
 
 To compensate for real-world messiness, conventional systems often accumulate large amounts of “cleanup” code: special cases for known bad inputs, regexes for common formatting errors, missing-data imputations, and other custom sanity-checks meant to sanitize dirty data before the real logic can run.
 
