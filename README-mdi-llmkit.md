@@ -6,7 +6,7 @@ Everybody’s excited right now about using AI to *write code*. Tools like Claud
 
 Business data is rarely clean. Documents contain typos, inconsistent terminology, ambiguous phrasing, and units that don’t quite match.
 
-Humans read through this noise without difficulty. **Humans can infer what the data *means*. Software cannot -- not unless it incorporates AI.** That doesnt simply mean software that was written by AI. That means software that _uses_ AI as part of its execution flow.
+Humans read through this noise without difficulty. **Humans can infer what the data *means*. Software cannot -- not unless it incorporates AI.** That doesnt simply mean software that was _written by_ AI. That means software that _uses_ AI as part of its execution flow.
 
 Consider a few actual field cases that Mighty Data, Inc. enountered with real-world clients:
 
