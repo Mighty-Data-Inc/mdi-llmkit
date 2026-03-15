@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mightydatainc-mdi-llmkit"
-version = "1.0.7"
+version = "1.0.8"
 description = "Meta-package that installs the core Mighty Data LLM utility packages"
 readme = "README.md"
 requires-python = ">=3.13"

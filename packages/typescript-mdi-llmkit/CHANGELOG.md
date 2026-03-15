@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.0.8 - 2026-03-15
+
+- Version bump only to induce CI/CD after the previous release workflow did not fire.
+
 ## 1.0.7 - 2026-03-15
 
 - Added a high-visibility link in the package README to the full repository README on GitHub.
