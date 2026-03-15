@@ -4,7 +4,6 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2022"],
-    "types": ["node"],
     "strict": true,
     "declaration": true,
     "outDir": "dist",
@@ -12,6 +11,5 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
-  },
-  "include": ["src/**/*", "tests/**/*"]
+  }
 }

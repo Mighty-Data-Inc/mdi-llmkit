@@ -1,103 +1,36 @@
-# mdi-llmkit (TypeScript)
+# @mightydatainc/mdi-llmkit
 
-Utilities for managing LLM chat conversations and structured JSON responses with OpenAI's Responses API.
+TypeScript/Node meta-package for the Mighty Data LLM toolkit.
+
+This package is a convenience installer. It does not define a runtime API surface of its own. Instead, it installs the core component packages used in TypeScript and JavaScript projects.
 
 ## Installation
 
 ```bash
-npm install mdi-llmkit openai
+npm install @mightydatainc/mdi-llmkit
 ```
 
+## Installed Component Packages
 
-## `compareItemLists` (semanticMatch)
+Installing this meta-package pulls in:
 
-`compareItemLists` performs a semantic diff between a "before" list and an "after" list,
-including LLM-assisted rename/add/remove decisions.
+- `@mightydatainc/llm-conversation`
+- `@mightydatainc/json-surgery`
+- `@mightydatainc/semantic-match`
 
-Types:
+## Usage
 
-- `SemanticallyComparableListItem`
-  - `string`
-  - `{ name: string; description?: string }`
-- `ItemComparisonResult`
-  - `Removed | Added | Renamed | Unchanged`
-- `OnComparingItemCallback`
-  - `(item, isFromBeforeList, isStarting, result, newName, error, totalProcessedSoFar, totalLeftToProcess) => void`
-
-Behavior notes:
-
-- Item matching is name-based and case-insensitive.
-- `description` provides extra model context but is not identity.
-- Names are expected to be unique within each list (case-insensitive).
-- Progress callback is fired at item start (`isStarting=true`) and finish (`isStarting=false`).
-
-Example:
+Import functionality from the component packages directly:
 
 ```ts
-import OpenAI from 'openai';
-import {
-  compareItemLists,
-  ItemComparisonResult,
-  type OnComparingItemCallback,
-} from 'mdi-llmkit/semanticMatch';
-
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-const onComparingItem: OnComparingItemCallback = (
-  item,
-  isFromBeforeList,
-  isStarting,
-  result,
-  newName,
-  error,
-  processed,
-  left
-) => {
-  if (error) {
-    console.warn('Comparison warning:', error);
-  }
-  if (!isStarting && result === ItemComparisonResult.Renamed) {
-    console.log('Renamed:', item, '->', newName);
-  }
-  console.log({ isFromBeforeList, isStarting, result, processed, left });
-};
-
-const comparison = await compareItemLists(
-  client,
-  [{ name: 'Widget A', description: 'Legacy widget' }, 'Widget B'],
-  [
-    { name: 'Widget Alpha', description: 'Migrated name for Widget A' },
-    'Widget B',
-  ],
-  'Widgets migrated from legacy catalog to new naming standards.',
-  onComparingItem
-);
-
-console.log(comparison);
+import * as llmConversation from '@mightydatainc/llm-conversation';
+import * as jsonSurgery from '@mightydatainc/json-surgery';
+import * as semanticMatch from '@mightydatainc/semantic-match';
 ```
 
-## JSON Response Mode
+Refer to each component package documentation for API details and examples.
 
-```ts
-import OpenAI from 'openai';
-import { gptSubmit } from 'mdi-llmkit';
+## Notes
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-const result = await gptSubmit(
-  [{ role: 'user', content: 'Return JSON with keys a and b.' }],
-  client,
-  { jsonResponse: true }
-);
-
-console.log(result);
-```
-
-
-## CI and Release
-
-- Unified CI + release workflow: `.github/workflows/typescript-release.yml`
-  - Runs CI on pull requests and on pushes to `main` when TypeScript package files change.
-  - Executes `npm ci`, `npm test`, and `npm run build` in `packages/typescript-mdi-llmkit`.
-  - On push to `main`, publishes to npm only if `package.json` version changed and that version is not already published.
-  - Uses repository secret `NPM_TOKEN` for npm authentication.
+- npm package name: `@mightydatainc/mdi-llmkit`
+- This package is dependency-only by design.
