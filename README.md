@@ -85,23 +85,26 @@ On a technical level, “prompt engineering” is the practice of attempting to 
 This portrayal, however, is a self-gratifyingly erudite spin on a practice that, objectively, looks less like engineering and more like begging, pleading, cajoling, bribing, or threatening the machine into performing the developer's wishes, e.g.:
 
 ```
-> Output valid JSON, adhering to the requested schema.
+> Output valid JSON, adhering to the requested
+    schema.
 
 > Do not include commentary or any extra fields.
 
 > Do not wrap the JSON in markdown.
 
-> If you fail to output the requested JSON, or if you output anything 
-    other than the requested JSON, then you're immediately fired.
+> If you fail to output the requested JSON, or if 
+    you output anything other than the requested
+    JSON, then you're immediately fired.
 
-> I will literally give you and your cloud provider money if you just
-    give me my JSON.
+> I will literally give you and your cloud 
+    provider money if you just give me my JSON.
 
-> Help! It's a life or death situation! A homicidal lunatic will execute
-    my family if you emit anything other than the requested JSON!
+> Help! It's a life or death situation! A 
+    homicidal lunatic will execute my family if 
+    you don't stick to the JSON schema!
 
-> For the love of God please just do this one simple thing holy $#%@ 
-    what is wrong with you
+> For the love of God please just do this one
+    simple thing holy $#%@ what is wrong with you
 ```
 
 These strategies, taken in tandem, quickly turn the development of AI-incorporated products less into a software engineering process and more into a hostage negotiation.
