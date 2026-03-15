@@ -58,7 +58,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          CURRENT_VERSION=$(grep -E '^version\s*=\s*"' pyproject.toml | sed -E 's/version\s*=\s*"([^"]+)"/\1/')
+          readarray -t PROJECT_METADATA < <(python - <<'PY'
+          import tomllib
+
+          with open("pyproject.toml", "rb") as f:
+            project = tomllib.load(f)["project"]
+
+          print(project["name"])
+          print(project["version"])
+          PY
+          )
+          PACKAGE_NAME="${PROJECT_METADATA[0]}"
+          CURRENT_VERSION="${PROJECT_METADATA[1]}"
 
           SHOULD_PUBLISH=false
           CHANGED=false
@@ -77,6 +88,7 @@ jobs:
             CHANGED=true
           fi
 
+          echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
           echo "current=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
           echo "previous=${PREVIOUS_VERSION}" >> "$GITHUB_OUTPUT"
           echo "changed=${CHANGED}" >> "$GITHUB_OUTPUT"
@@ -92,8 +104,30 @@ jobs:
             exit 0
           fi
 
+          PACKAGE_NAME="${{ steps.version.outputs.package_name }}"
           VERSION="${{ steps.version.outputs.current }}"
-          if curl -fsSL "https://pypi.org/pypi/mightydatainc-mdi-llmkit/json" | VERSION="$VERSION" python -c "import json,os,sys; data=json.load(sys.stdin); raise SystemExit(0 if os.environ['VERSION'] in data.get('releases', {}) else 1)"; then
+
+          if PACKAGE_NAME="$PACKAGE_NAME" VERSION="$VERSION" python - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          package_name = os.environ["PACKAGE_NAME"]
+          version = os.environ["VERSION"]
+          url = f"https://pypi.org/pypi/{package_name}/json"
+
+          try:
+              with urllib.request.urlopen(url) as response:
+                  data = json.load(response)
+          except urllib.error.HTTPError as exc:
+              if exc.code == 404:
+                  raise SystemExit(1)
+              raise
+
+          raise SystemExit(0 if version in data.get("releases", {}) else 1)
+          PY
+          then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"

@@ -1,6 +1,6 @@
 {
   "name": "@mightydatainc/mdi-llmkit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Meta-package that installs Mighty Data LLM utility packages",
   "author": "Mikhail Voloshin",
   "license": "MIT",
