@@ -1,24 +1,24 @@
 # Integrating AI into Production Software
 
-Everybody’s excited right now about using AI to *write code*. Tools like Claude Code, Codex, and Copilot promise faster development cycles and even let non-developers spin up their own apps. That’s great for productivity—but it misses the bigger opportunity.
+Everybody’s excited right now about using AI to *write code*. Tools like Claude Code, GPT Codex, and GitHub Copilot promise faster development cycles and even let non-developers spin up their own apps. That’s great for productivity -- but it misses the bigger opportunity.
 
 > **LLMs shouldn’t just write software. They should make software _be smarter_.**
 
 Business data is rarely clean. Documents contain typos, inconsistent terminology, ambiguous phrasing, and units that don’t quite match.
 
-Humans read through this noise without difficulty. **Humans can infer what the data *means*. Software cannot -- _unless_ it incorporates AI.**
+Humans read through this noise without difficulty. **Humans can infer what the data *means*. Software cannot -- not unless it incorporates AI.** That doesnt simply mean software that was written by AI. That means software that _uses_ AI as part of its execution flow.
 
 Consider a few actual field cases that Mighty Data, Inc. enountered with real-world clients:
 
-- An invoice system for home renovation projects tried to order **2,000 buckets of beige paint**, when what the client meant was enough paint to cover **2,000 square feet of interior wall**.  
-- A single-family residential property listing reported **212 bathrooms** because someone typed **“2 1/2”**, and the system interpreted it as a whole number.  
+- An invoice system for home renovation projects tried to order **2,000 buckets of beige paint**, when what the user meant was enough paint to cover **2,000 square feet of interior wall**.  
+- A residential property listing claimed that a single-family home had **212 bathrooms** because someone typed **“2 1/2”**.  
 - A mining company needed to avoid violating a lein on **“the 5-acre square at the northwestern corner of the Johnson family farm,”** requiring contextual reasoning to determine the actual geographic location being referenced and find it on a map using objectively discernible latitude and longitude coordinates.
 
 To compensate for real-world messiness, conventional systems often accumulate large amounts of “cleanup” code: special cases for known bad inputs, regexes for common formatting errors, missing-data imputations, and other custom sanity-checks meant to sanitize dirty data before the real logic can run.
 
 **Traditional software handles dirty data by piling on brittle heuristics.**
 
-This works—up to a point. But it only handles problems the programmer already anticipated. When something new appears—an unfamiliar phrasing, a strange unit, or a subtle inconsistency—the system has no idea what to do with it. The system either passes the wrong number down the pipeline without a second thought, or it tries to "correct" it _incorrectly_, which just makes the problem worse.
+This works, up to a point. But it only handles problems the programmer already anticipated. When something new appears -- an unfamiliar phrasing, a strange unit, or a subtle inconsistency -- the system has no idea what to do with it. The system either passes the wrong number down the pipeline without a second thought, or it tries to "correct" it _incorrectly_, which just makes the problem worse.
 
 That's where LLM integration comes in.
 
@@ -30,11 +30,11 @@ So if LLMs make software so much more capable, why isn’t every application alr
 
 Because integrating LLMs into real software is surprisingly awkward.
 
-Most LLM tooling today is optimized for chat interfaces, coding assistants, or quick demos. The coding examples for popular LLM services such as GPT tend to assume that there's a human sitting at a keyboard, typing prompts and reading responses.
+Most LLM tooling today is optimized for chat interfaces, coding assistants, or quick demos. The sample apps for popular LLM services such as GPT tend to assume that there's a human sitting at a keyboard, typing prompts and reading responses.
 
-But the vast majority of production-grade software doesn’t work that way. Applications need structured inputs, structured outputs, predictable behavior, and repeatable control over how the model is used. They need systems that can manage multi-step reasoning, validate outputs, and integrate results into ordinary application logic.
+But the vast majority of production-grade software doesn’t work that way. Applications need sanitized inputs, structured outputs, predictable behavior, and repeatable control over how the model is used. They need systems that can manage multi-step reasoning, perrorm contextual reasoning, and integrate results into ordinary application logic.
 
-This is where many teams run into trouble. The moment you try to move beyond a toy example, the integration surface gets messy. Prompts become long and fragile, output parsing becomes brittle, and conversation history turns into an ad-hoc pile of strings that’s difficult to manage.
+This is where many teams run into trouble. The moment you try to move beyond a toy example, the integration surface gets messy. Developers end up reinventing the same multi-stage conversation management logic over and over again -- or they choose not to use multi-stage conversation methods at all. They perform the same cleanup tasks repeatedly to parse the LLM's output and handle unexpected response structures. They resort to more and more "creative" approaches to prompt engineering with ever-increasing levels of desperation. In short:
 
 **Developers end up reinventing the same LLM infrastructure over and over again.**
 
@@ -42,7 +42,7 @@ That’s the problem space this toolkit addresses.
 
 Instead of treating LLMs like a chatbot bolted onto the side of your system, **the Mighty Data, Inc. LLM Toolkit** provides utilities for integrating them as structured components inside real applications: managing multi-shot conversations, working with structured outputs, and building systems where model reasoning can be incorporated cleanly into ordinary software workflows.
 
-**The Mighty Data, Inc. LLM Toolkit provides the infrastructure needed to do this reliably in production.**
+**The Mighty Data, Inc. LLM Toolkit provides the infrastructure needed to invoke LLMs reliably in production-grade application logic.**
 
 ---
 
