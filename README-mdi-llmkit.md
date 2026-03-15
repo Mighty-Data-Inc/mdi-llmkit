@@ -66,7 +66,7 @@ The word "command" is in quotes because, without further engineering, no enforce
 
 In practice, a developer can tell the LLM to, for example, emit a numerical answer ("...and _only_ a numerical answer!") following the all-cap sentinel word `ANSWER:`, intending to use a regex to parse some digits that presumably follow that sentinel -- only to have the LLM _occasionally_, _intermittently_, reply: `ANSWER: Approximately forty-two, depending on conditions.` 
 
-Or, a developer can ask for a JSON object with the intent of sending the reply through a standard JSON parser, only to see the LLM _sometimes_ return: `Sure! Here is the JSON object you requested! { "answer": 42 } Would you like me to continue the computation?`
+Or, a developer can ask for a JSON object with the intent of sending the reply through a standard JSON parser, only to see the LLM _sometimes_ return: `Sure! Here is the JSON object you requested! { "answer": 42 } Would you like me to perform another computation?`
 
 This behavior is usually infuriating to software engineers, whose work involves interacting with the computer as a machine to be operated, not as an over-eager intern who needs continuous corralling back into the boundaries of his job. 
 
