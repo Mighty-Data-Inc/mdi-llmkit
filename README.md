@@ -122,11 +122,11 @@ When these principles are followed, LLMs become much easier to integrate into ex
 
 ---
 
-# 2. Components of the Mighty Data, Inc. LLM Kit
+# 2. Components Included by the Mighty Data, Inc. LLM Kit Meta-Package
 
-Here we review some of the larger pieces of the Mighty Data, Inc. LLM Kit.
+The Mighty Data, Inc. LLM Kit is a meta-package. This section summarizes several of the primary component packages that it brings together.
 
-This list isn't necessarily comprehensive, because new tools are often added to the kit -- and existing tools are sometimes extended with additional capabilities. This section is meant simply for you to survey the contents of this kit so that you can make an informed decision about whether or not it's right for your project. 
+This list isn't necessarily comprehensive, because new tools are often added to the kit, and existing tools are sometimes extended with additional capabilities. This section is meant simply for you to survey the overall bundle so that you can make an informed decision about whether or not it's right for your project.
 
 Additional details for each component can be found in that component's corresponding repository.
 
