@@ -1,6 +1,6 @@
 # Integrating AI into Production Software
 
-Everybody’s excited right now about using AI to *write code*. Tools like Claude Code, GPT Codex, and GitHub Copilot promise faster development cycles and even let non-developers spin up their own apps. That’s great for productivity -- but it misses the bigger opportunity.
+Everybody’s excited right now about using AI to *write code*. Tools like Claude Code, GPT Codex, and GitHub Copilot drive faster development cycles and even let non-developers spin up their own apps. That’s great for productivity -- but it misses the bigger opportunity.
 
 > **LLMs shouldn’t just write software. They should make software _be smarter_.**
 
@@ -10,9 +10,9 @@ Humans read through this noise without difficulty. **Humans can infer what the d
 
 Consider a few actual field cases that Mighty Data, Inc. enountered with real-world clients:
 
-- An invoice system for home renovation projects tried to order **5,000 buckets of beige paint**, when what the user meant was enough paint to cover **5,000 square feet of interior wall**.  
+- An invoice system for home renovation projects tried to order **5,000 buckets of beige paint**, when what the user meant was enough paint to cover **5,000 square feet of interior wall**. In a field titled "Paint (Qty: buckets)", they entered "5000 sqft". Any human contractor in the industry would've known what they meant. Without integrated AI, the invoicing software had no clue.
 - A residential property listing claimed that a single-family home had **212 bathrooms** because someone typed **“2 1/2”**.  
-- A mining company needed to avoid violating a lein on **“the 10-acre square at the northwestern corner of the Johnson family farm,”** requiring contextual reasoning to determine the actual geographic location being referenced and find it on a map using objectively discernible latitude and longitude coordinates.
+- A builder needed to obey a lein on **“the 10-acre square at the northwestern corner of the Johnson family farm,”** requiring contextual reasoning to determine the actual geographic location being referenced and find it on a map using objectively discernible latitude and longitude coordinates.
 
 To compensate for real-world messiness, conventional systems often accumulate large amounts of “cleanup” code: special cases for known bad inputs, regexes for common formatting errors, missing-data imputations, and other custom sanity-checks meant to sanitize dirty data before the real logic can run.
 
@@ -22,27 +22,29 @@ This works, up to a point. But it only handles problems the programmer already a
 
 That's where LLM integration comes in.
 
-LLMs make it possible to build systems that can interpret those imperfect inputs, resolve ambiguity, and detect contextual anomalies before they propagate into downstream systems.
+LLMs make it possible to build systems that can interpret inputs, resolve ambiguity, and detect contextual anomalies before they propagate downstream.
 
 **Software with LLM integration can finally meet the real world where it actually is.**
 
-So if LLMs make software so much more capable, why isn’t every application already using them?
+So. If LLMs make software so much more capable, then _why isn’t every application already using them_?
 
-Because integrating LLMs into real software is surprisingly awkward.
+The reason is simple: because LLM technology simply wasn't invented, nor presented to the user public, in a business-forward manner.
 
-Most LLM tooling today is optimized for chat interfaces, coding assistants, or quick demos. The sample apps for popular LLM services such as GPT tend to assume that there's a human sitting at a keyboard, typing prompts and reading responses.
+> **Integrating LLMs into real software is surprisingly awkward.**
 
-But the vast majority of production-grade software doesn’t work that way. Applications need sanitized inputs, structured outputs, predictable behavior, and repeatable control over how the model is used. They need systems that can manage multi-step reasoning, perrorm contextual reasoning, and integrate results into ordinary application logic.
+Most LLM tooling today is optimized for chat interfaces, coding assistants, or quick demos. The sample apps for popular LLM services such as GPT tend to assume a use case in which there's a human sitting at a keyboard, typing questions and reading replies.
+
+The vast majority of production-grade software doesn’t work that way. Applications seldom follow a language-first interaction modality. At the enterprise level, applications need to function autonomously. They need sanitized inputs, structured outputs, predictable behavior, and repeatable control. They need systems that can manage multi-step reasoning, perform contextual inference, and integrate results into ordinary application logic.
 
 This is where many teams run into trouble. The moment you try to move beyond a toy example, the integration surface gets messy. Developers end up reinventing the same multi-stage conversation management logic over and over again -- or they choose not to use multi-stage conversation methods at all. They perform the same cleanup tasks repeatedly to parse the LLM's output and handle unexpected response structures. They resort to more and more "creative" approaches to prompt engineering with ever-increasing levels of desperation. In short:
 
-**Developers end up reinventing the same LLM infrastructure over and over again.**
+**Developers end up reinventing the same LLM usage "glue" over and over again.**
 
 That’s the problem space this toolkit addresses.
 
-Instead of treating LLMs like a chatbot bolted onto the side of your system, **the Mighty Data, Inc. LLM Kit** provides utilities for integrating them as structured components inside real applications: managing multi-shot conversations, working with structured outputs, and building systems where model reasoning can be incorporated cleanly into ordinary software workflows.
+Instead of treating LLMs like a chatbot bolted onto the side of your system, the **Mighty Data, Inc. LLM Kit** provides utilities for integrating them as structured components inside real applications: managing multi-shot conversations, working with structured outputs, and building systems where model reasoning can be incorporated cleanly into ordinary software workflows.
 
-**The Mighty Data, Inc. LLM Kit provides the infrastructure needed to invoke LLMs reliably in production-grade application logic.**
+> **The Mighty Data, Inc. LLM Kit provides the infrastructure needed to invoke LLMs reliably in production-grade application logic.**
 
 ---
 
@@ -50,30 +52,30 @@ Instead of treating LLMs like a chatbot bolted onto the side of your system, **t
 
 Professional software engineering teams need predictable, auditable, structured outputs that plug into existing procedural software pipelines. Unfortunately, LLMs naturally return probabilistic free-form text, which creates integration risk, brittle post-processing logic, and high maintenance overhead.
 
-## 1.1 Free-Form Text vs. Structured Systems
+## 1.1. Free-Form Text vs. Structured Systems
 
-Large language models are powerful tools. They're great at reading text, summarizing information, and finding specific pieces of information in natural-language documents.
+Large language models are powerful tools. They're great at reading text, summarizing information, and extracting specific pieces of data from natural-language documents.
 
-However, they have one major limitation: **they produce free-form text**.
+However, they have one major limitation: **they produce free-form text**. Above all else, their training emphasizes _natural language_ token sequences.
 
 Software systems, on the other hand, require **structured data**.
 
-This mismatch creates difficulties when developers attempt to integrate LLMs into production-grade software systems.
+This mismatch creates difficulties when developers attempt to integrate LLMs into production-grade deliverables.
 
 The approach most commonly taken by most developers -- common because it's the approach most easily afforded by most LLMs' APIs -- is to show the LLM a document or piece of data, tell the LLM what information to extract or transformation to perform on the data, and then "command" the LLM to emit a response using a very specific structure or format devised by the developer. This "very specific structure or format" is often a JSON object, or a comma-separated value list, or a special sentinel word that can serve as an anchor for a regex, etc.
 
 The word "command" is in quotes because, without further engineering, no enforcement mechanism exists to ensure that the LLM will actually obey the developer's formatting instructions. The LLM, when given instructions, is under no inherent obligation to actually follow them. At best, it regards instructions as _strongly worded suggestions_; and when LLM providers such as OpenAI or Anthropic tout models as being "better at following directions", such models are typically simply ones that have been more aggressively trained (e.g. via RLHF) to take instructions "under advisement".
 
-In practice, a developer can tell the LLM to, for example, emit a numerical answer ("...and _only_ a numerical answer!") following the all-cap sentinel word `ANSWER:`, intending to use a regex to parse some digits that presumably follow that sentinel -- only to have the LLM _occasionally_, _intermittently_, reply: `ANSWER: Approximately forty-two, depending on conditions.` 
+In practice, a developer can tell the LLM to, for example, emit a numerical answer ("...and _only_ a numerical answer, d@#n you!") following the all-cap sentinel word `ANSWER:`, intending to use a regex to parse some digits that presumably follow that sentinel -- only to have the LLM _occasionally_, _intermittently_, reply: `ANSWER: Approximately forty-two, depending on conditions.` 
 
 Or, a developer can ask for a JSON object with the intent of sending the reply through a standard JSON parser, only to see the LLM _sometimes_ return: `Sure! Here is the JSON object you requested! { "answer": 42 } Would you like me to perform another computation?`
 
-This behavior is usually infuriating to software engineers, whose work involves interacting with the computer as a machine to be operated, not as an over-eager intern who needs continuous corralling back into the boundaries of his job. 
+This behavior is largely infuriating and demoralizing to software engineers, whose work involves interacting with the computer as a machine to be operated, not as an over-eager intern who needs continuous corralling back into the boundaries of his job.
 
 To deal with this nondeterministic recalcitrance on the part of LLMs, programmers often turn to:
 
 - error-handling loops with arbitrarily high iteration counts and elaborate strategies for reconciling differences in results across iterations.
-- Byzantine regexes which have to grow increasingly more elaborate as the LLM continuously finds new and ever more creative ways to disappoint its programmers.
+- Byzantine regexes which continuously grow more elaborate as the LLM finds new and ever more creative ways to disappoint its programmers.
 - liquor.
 
 This is often coupled with increasingly desperate efforts at **“prompt engineering.”**. 
@@ -89,25 +91,25 @@ This portrayal, however, is a self-gratifyingly erudite spin on a practice that,
 > If you fail to output the requested JSON, or if you output anything other than the requested JSON, then you're immediately fired.
 > I will literally give you and your cloud provider money if you just give me my JSON.
 > Help! It's a life or death situation! A homicidal lunatic will execute my family if you emit anything other than the requested JSON!
-> For the love of God please just do this one simple thing holy $@%@ what is wrong with you
+> For the love of God please just do this one simple thing holy $#%@ what is wrong with you
 ```
 
-These strategies, taken in tandem, quickly turn the development cycles of AI-incorporated products less into a software engineering process and more into a hostage negotiation.
+These strategies, taken in tandem, quickly turn the development of AI-incorporated products less into a software engineering process and more into a hostage negotiation.
 
-A more reliable solution is to provide **software tools that enforce structure directly**, rather than trying to use coercion and manipulation tactics to get the AI to obey.
+A more reliable solution is to provide **software tools that enforce structure directly**, rather than trying to use psychological manipulation, deception, and coercion tactics to get the AI to obey.
 
 ---
 
-## 1.2 A Better Approach
+## 1.2. A Better Approach
 
-The **Mighty Data, Inc. LLM Kit** provides several small tools designed to make LLMs behave more like normal, conventional software components.
+The **Mighty Data, Inc. LLM Kit** provides several small tools designed to make LLM interactions behave more like normal, conventional software components.
 
-These tools are **independent utilities**, each of which is intended to be used for the solution of a particular problem. They can be used independently or together, as you and your team see fit for your project.
+These tools are **independent utilities**, each of which is intended to be used for the solution of a particular problem. They can be used separately or together, as you and your team see fit for your project.
 
-The guiding idea behind this toolkit is simple:
+The guiding ideas behind this toolkit are simple:
 
-> LLMs should behave like components inside a software system, not like chatbots.
-> Their behavior should offer at least the _semblance_ of _emergent_ determinism, even if the underlying processes are stochastic
+- LLMs should behave like components inside a software system, not like chatbots.
+- LLM behavior should offer at least the _semblance_ of _emergent_ determinism, even if the underlying processes are stochastic. (Think of this as being akin to thermodynamics, wherein the behavior of any single molecule in a medium may be completely unknowable, but the aggregate behavior of the medium as a whole can be quite straightforward.)
 
 This means:
 
@@ -120,35 +122,40 @@ When these principles are followed, LLMs become much easier to integrate into ex
 
 ---
 
-# 2. Core Components of the Mighty Data, Inc. LLM Kit
+# 2. Components of the Mighty Data, Inc. LLM Kit
 
-## 2.1 GptConversation
+Here we review some of the larger pieces of the Mighty Data, Inc. LLM Kit.
 
-Most LLM integrations rely on single prompts.
+This list isn't necessarily comprehensive, because new tools are often added to the kit -- and existing tools are sometimes extended with additional capabilities. This section is meant simply for you to survey the contents of this kit so that you can make an informed decision about whether or not it's right for your project. 
 
-This approach works for simple tasks, but it quickly becomes fragile when systems grow more complex.
+Additional details for each component can be found in that component's corresponding repository.
 
-Real workflows often require:
+## 2.1. LLMConversation
 
-- multiple reasoning steps
-- structured outputs
-- retries when a response fails
-- comparing multiple candidate answers
+_Repo_: https://github.com/Mighty-Data-Inc/llm-conversation
 
-**GptConversation** provides a structured way to manage these interactions.
+Most LLM integrations rely on single prompts, i.e. "one-shot" conversations with the LLM: the application sends one request, gets one response, and then stops, without preserving conversation state for follow-up reasoning or correction. This approach works for narrow, stateless tasks, but it breaks down in real workflows that need multi-step reasoning, intermediate validation, and iterative content revisions and refinements.
 
-It allows developers to maintain conversation state and submit prompts through a controlled interface.
+**LLMConversation** provides a structured way to manage these interactions. It allows developers to maintain conversation state and submit prompts through a controlled interface.
 
-A simple example:
+### 2.1.1. Features provided by LLMConversation
+
+- An easy API to manage multi-shot back-and-forth communication between the LLM "assistant" and the calling program.
+- Performs error-handling, including retries for intermittent error types (e.g. temporary rate throttling).
+- Handles all data-shaping and parsing when used for producing structured outputs. See `JSONSchemaFormat` below.
+- A `clone` method, which allows you to save a conversation state and replay it with alternative branch options -- great for iterative tasks, and for setting up multiple conversation threads in an adversarial configuration (i.e. getting two or more conversation threads to argue with one another, a practice which can greatly improve final result quality).
+- An optional `shotgun` parameter, which instructs the system to execute the same submission across multiple parallel workers and then reconcile their replies into a single coherent output. It burns extra tokens and takes extra time, but it dramatically reduces hallucinations and increases stability and reliability.
+
+### 2.1.2. A simple example of LLMConversation
 
 ```python
-from mightydatainc_gpt_conversation import GptConversation
+from mightydatainc_gpt_conversation import LLMConversation
 from openai import OpenAI
 from pathlib import Path
 
 openai_client = OpenAI()
 
-conversation = GptConversation(openai_client)
+conversation = LLMConversation(openai_client)
 
 ticker = "AAPL"
 
@@ -186,15 +193,13 @@ print(report_summary)
 print(buy_or_sell)
 ```
 
-The `submit` method also provides an optional `shotgun` parameter, which instructs the system to execute the same submission across multiple parallel workers and then reconcile their replies into a single coherent output. It burns extra tokens and takes extra time, but it dramatically reduces hallucinations and increases stability and reliability.
-
 ---
 
-## 2.2 JSONSchemaFormat
+## 2.2. JSONSchemaFormat
 
-Even when asked for JSON, LLMs frequently produce malformed structures -- at least, during normal operation. As it so happens, OpenAI offers a "[structured output](https://developers.openai.com/api/docs/guides/structured-outputs/)" mode in its GPT REST API. In practice, not as many developers leverage this capability as they should -- primarily because the syntax can be a bit unwieldy, and because this aspect of the API has its own esoteric failure modes in addition to the more common ones. (For example, it's been known to continue emitting an entire secondary JSON object even after finishing emission of the first, thus creating a sort of "JSON Siamese twin" that will throw an error from a standard JSON parser. For another example, sometimes when it's uncertain about what JSON token should come next, it'll just fill the entire context window with whitespace. But I digress.)
+Even when asked for JSON, LLMs frequently produce malformed structures -- at least, during normal operation. As it so happens, both OpenAI and Anthropic offer a "[structured output](https://developers.openai.com/api/docs/guides/structured-outputs/)" mode in their GPT and Claude REST APIs, respectively. In practice, not as many developers leverage this capability as they should -- primarily because the syntax can be unwieldy, and because this aspect of the API has its own esoteric failure modes in addition to the more common ones. (For example, GPT in structured output mode been known to continue emitting an entire secondary JSON object even after finishing emission of the first, thus creating a sort of "JSON Siamese twin" that will throw an error from a standard JSON parser. For another example, sometimes when it's uncertain about what JSON token should come next, it'll just fill the entire context window with whitespace. But I digress.)
 
-**JSONSchemaFormat** remedies these problems by providing a robust, convenient, WYSIWYG schema specification system. With `JSONSchemaFormat`, you can pass it a data structure that "looks like" the format you want your results in. The LLM will produce output that's enforced to adhere to the constraints you specify, and the GptConversation wrapper code ensures that all necessary retries and parsing gotchas are handled for you.
+**JSONSchemaFormat** remedies these problems by providing a robust, convenient, WYSIWYG schema specification system. With `JSONSchemaFormat`, you can pass it a data structure that "looks like" the format you want your results in. The LLM will produce output that's enforced to adhere to the constraints you specify, and the LLMConversation wrapper code ensures that all necessary retries and parsing gotchas are handled for you.
 
 Unlike free-form text with prompt engineering, the model _must_ return data that conforms to this structure. The result can be consumed immediately by the program as structured data. This eliminates the need for fragile parsing logic.
 
@@ -212,7 +217,7 @@ conversation.add_system_message(
 # object specification and even descriptions and whatnot, but none of that is
 # necessary in this example. As a human, you can look at this and deduce what the
 # AI needs to do. The AI will deduce it just as clearly.
-# The argument shotgun=3 will make 3 different parallel workers, all responding
+# The argument shotgun=3 will launch 3 parallel workers, all responding
 # to the same prompt; the conversation will then reintegrate their responses
 # into a single canonical reply. Such firepower is almost certainly overkill
 # for this example, but it's shown here for illustration purposes.
@@ -232,15 +237,11 @@ print(buy_or_sell)
 
 ---
 
-## 2.3 json_surgery
+## 2.3. json_surgery
 
-Another common problem occurs when an LLM is asked to modify an existing structured object.
+Another common problem occurs when an LLM is asked to modify an existing structured object. Developers often ask AIs to perform some modification on a data file or database record, but oftentimes the AI's only mechanism for performing such a modification is to rewrite the entire object from scratch. This often leads to massive data integrity errors, such as the removal of entire blocks of data or possibly even the loss of structural validity for the entire data object. 
 
-Developers often ask the model to regenerate the entire object with one small change. This approach frequently leads to errors such as:
-
-- missing fields
-- extra fields
-- altered data structures
+A real-world example of this kind of error was recently experienced by a project maanger who asked an AI agent to perform a revision on a very large spreadsheet file consisting of multiple tabs of data. The scope of the revision request involved modifying a small block of data in one of the tabs. The AI agent performed the requested revision -- but, in the process, deleted all other tabs and all other portions of the spreadsheet except for the specific block that contained the revision. Under the hood, what had happened was that the AI implicitly implemented a sort of "shorthand" for modifying the spreadsheet: rather than emitting the entire large spreadsheet with the changes in place, it emitted a brand new spreadsheet that consisted of just the changed portion and nothing else. It's an implicit difference that, if a human were to see the resulting structure, would be immediately understood simply by virtue of the size difference to be a substructure intended to be copy-pasted _into_ the original file rather than to replace its contents wholesale. But, given that this occurred within the context of a file-editing tool call dispatched by the AI, the tool simply blindly obeyed the AI's commands and rewrote the entire file.
 
 **json_surgery** takes a different approach. Instead of rewriting the entire object, it performs **targeted semantic edits**.
 
@@ -315,7 +316,7 @@ This example demonstrates semantic transformation, schema augmentation, and reas
 
 ---
 
-## 2.4 semantic_match
+## 2.4. semantic_match
 
 Many analytics workflows require mapping ambiguous text to known values.
 
@@ -332,7 +333,7 @@ Instead of performing exact string matching, it finds the closest semantic match
 Consider a simple example involving analyst reports.
 
 1. A text report arrives from an analyst.
-2. The system extracts structured information using **GptConversation** and **JSONSchemaFormat**.
+2. The system extracts structured information using **LLMConversation** and **JSONSchemaFormat**.
 3. The system queries the database for a list of known companies.
 4. **semantic_match** identifies which company the report refers to.
 5. The report is inserted into a database keyed by the ticker symbol.
@@ -344,11 +345,11 @@ from pathlib import Path
 
 from openai import OpenAI
 from pymongo import MongoClient
-from mightydatainc_gpt_conversation import GptConversation, JSONSchemaFormat
+from mightydatainc_gpt_conversation import LLMConversation, JSONSchemaFormat
 from mightydatainc_semantic_match import find_semantic_match
 
 openai_client = OpenAI()
-conversation = GptConversation(openai_client)
+conversation = LLMConversation(openai_client)
 
 # This method doesn't actually send any data to the LLM yet. It merely adds
 # this message to the conversation sequence.
