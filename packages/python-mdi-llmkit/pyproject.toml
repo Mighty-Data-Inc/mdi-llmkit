@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mightydatainc-mdi-llmkit"
-version = "1.0.2"
+version = "1.0.4"
 description = "Meta-package that installs the core Mighty Data LLM utility packages"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-  "mightydatainc-llm-conversation",
-  "mightydatainc-json-surgery",
-  "mightydatainc-semantic-match",
+  "mightydatainc-llm-conversation>=1.0.5",
+  "mightydatainc-json-surgery>=1.2.1",
+  "mightydatainc-semantic-match>=1.3.0",
 ]
 authors = [{ name = "Mikhail Voloshin" }]
 license = { file = "LICENSE" }

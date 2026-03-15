@@ -1,6 +1,6 @@
 {
   "name": "@mightydatainc/mdi-llmkit",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Meta-package that installs Mighty Data LLM utility packages",
   "author": "Mikhail Voloshin",
   "license": "MIT",
@@ -16,8 +16,8 @@
     "chat"
   ],
   "dependencies": {
-    "@mightydatainc/llm-conversation": "^1.0.0",
-    "@mightydatainc/json-surgery": "^1.0.0",
-    "@mightydatainc/semantic-match": "^1.0.0"
+    "@mightydatainc/llm-conversation": ">=1.0.5",
+    "@mightydatainc/json-surgery": ">=1.2.1",
+    "@mightydatainc/semantic-match": ">=1.3.0"
   }
 }
