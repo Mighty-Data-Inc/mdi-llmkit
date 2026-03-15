@@ -497,12 +497,20 @@ This example illustrates how traditional systems and LLM tools can work together
 
 ## 4.1. Languages
 
-The Mighty Data, Inc. LLM Kit is provided in the following programming languages:
+The Mighty Data, Inc. LLM Kit is distributed as a **meta-package** in each supported ecosystem.
 
-- Python
-    - `pip install mightydatainc-mdi-llmkit`
-- TypeScript
-    - `npm install @mightydatainc/mdi-llmkit`
+In other words, this package is primarily a convenience bundle. It provides a single install target that pulls in a curated set of related Mighty Data LLM utilities, instead of requiring users to install multiple companion packages one by one.
+
+Meta-packages are currently provided for the following languages, along with a list of packages that this meta-package pulls into your respective environment:
+
+- Python: `pip install mightydatainc-mdi-llmkit`
+    - `mightydatainc-llm-conversation`
+    - `mightydatainc-json-surgery`
+    - `mightydatainc-semantic-match`
+- TypeScript: `npm install @mightydatainc/mdi-llmkit`
+    - `@mightydatainc/llm-conversation`
+    - `@mightydatainc/json-surgery`
+    - `@mightydatainc/semantic-match`
 
 ## 4.2. LLM Service Providers
 
