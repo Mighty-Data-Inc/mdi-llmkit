@@ -37,8 +37,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: "23"
-          # Deliberately omit "registry-url" because it doesn't work with Trusted Publisher.
+          node-version: "24"
+          # registry-url is intentionally omitted. Setting it writes an .npmrc
+          # entry that ties auth to NODE_AUTH_TOKEN, which conflicts with npm's
+          # Trusted Publisher / OIDC flow used by --provenance. Auth is handled
+          # entirely by the OIDC token granted via `id-token: write` above.
           cache: "npm"
           cache-dependency-path: packages/typescript-mdi-llmkit/package-lock.json
 
@@ -93,7 +96,9 @@ jobs:
 
       - name: Publish to npm
         if: steps.version.outputs.should_publish == 'true' && steps.version.outputs.changed == 'true' && steps.published.outputs.exists != 'true'
-        run: npm publish --access public --provenance
+        run: |
+          # CI already ran tests/build above, so skip prepublishOnly to avoid duplicate work.
+          npm publish --access public --provenance --ignore-scripts
 
       - name: Report release decision
         if: steps.version.outputs.should_publish != 'true' || steps.version.outputs.changed != 'true' || steps.published.outputs.exists == 'true'
