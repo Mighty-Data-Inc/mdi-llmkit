@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.0.6 - 2026-03-15
+
+- Bumped to a shared Python/TypeScript version line.
+- Aligned with the higher prior package version and moved both packages forward together.
+
 ## 1.0.5 - 2026-03-15
 
 - Bumped the meta-package version after dependency updates.
