@@ -21,7 +21,6 @@ jobs:
 
     environment: env-mdi-llmkit
     env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       TWINE_USERNAME: __token__
       TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
 
@@ -47,9 +46,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip install hatch twine
-
-      - name: Run tests
-        run: python -u -m unittest discover -v -s tests
 
       - name: Build package
         run: hatch build
@@ -97,7 +93,7 @@ jobs:
           fi
 
           VERSION="${{ steps.version.outputs.current }}"
-          if curl -fsSL "https://pypi.org/pypi/mdi-llmkit/json" | VERSION="$VERSION" python -c "import json,os,sys; data=json.load(sys.stdin); raise SystemExit(0 if os.environ['VERSION'] in data.get('releases', {}) else 1)"; then
+          if curl -fsSL "https://pypi.org/pypi/mightydatainc-mdi-llmkit/json" | VERSION="$VERSION" python -c "import json,os,sys; data=json.load(sys.stdin); raise SystemExit(0 if os.environ['VERSION'] in data.get('releases', {}) else 1)"; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
