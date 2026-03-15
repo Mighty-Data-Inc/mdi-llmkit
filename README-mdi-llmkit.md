@@ -40,9 +40,9 @@ This is where many teams run into trouble. The moment you try to move beyond a t
 
 That’s the problem space this toolkit addresses.
 
-Instead of treating LLMs like a chatbot bolted onto the side of your system, **the Mighty Data, Inc. LLM Toolkit** provides utilities for integrating them as structured components inside real applications: managing multi-shot conversations, working with structured outputs, and building systems where model reasoning can be incorporated cleanly into ordinary software workflows.
+Instead of treating LLMs like a chatbot bolted onto the side of your system, **the Mighty Data, Inc. LLM Kit** provides utilities for integrating them as structured components inside real applications: managing multi-shot conversations, working with structured outputs, and building systems where model reasoning can be incorporated cleanly into ordinary software workflows.
 
-**The Mighty Data, Inc. LLM Toolkit provides the infrastructure needed to invoke LLMs reliably in production-grade application logic.**
+**The Mighty Data, Inc. LLM Kit provides the infrastructure needed to invoke LLMs reliably in production-grade application logic.**
 
 ---
 
@@ -50,7 +50,7 @@ Instead of treating LLMs like a chatbot bolted onto the side of your system, **t
 
 Professional software engineering teams need predictable, auditable, structured outputs that plug into existing procedural software pipelines. Unfortunately, LLMs naturally return probabilistic free-form text, which creates integration risk, brittle post-processing logic, and high maintenance overhead.
 
-## 1.1 Free-Form Text vs Structured Systems
+## 1.1 Free-Form Text vs. Structured Systems
 
 Large language models are powerful tools. They're great at reading text, summarizing information, and finding specific pieces of information in natural-language documents.
 
@@ -64,16 +64,25 @@ The approach most commonly taken by most developers -- common because it's the a
 
 The word "command" is in quotes because, without further engineering, no enforcement mechanism exists to ensure that the LLM will actually obey the developer's formatting instructions. The LLM, when given instructions, is under no inherent obligation to actually follow them. At best, it regards instructions as _strongly worded suggestions_; and when LLM providers such as OpenAI or Anthropic tout models as being "better at following directions", such models are typically simply ones that have been more aggressively trained (e.g. via RLHF) to take instructions "under advisement".
 
-In practice, a developer can tell the LLM to, for example, emit a numerical answer ("...and _only_ a numerical answer!") following the all-cap sentinel word `ANSWER:`, intending to use a regex to parse some digits that presumably follow that sentinel -- only to have the LLM _occasionally_, _intermittently_, reply: `ANSWER: Approximately forty-two, depending on conditions.` Or, a developer can ask for a JSON object with the intent of sending the reply through a standard JSON parser, only to see the LLM _sometimes_ return: `Sure! Here is the JSON object you requested! { "answer": 42 } Would you like me to continue the computation?`
+In practice, a developer can tell the LLM to, for example, emit a numerical answer ("...and _only_ a numerical answer!") following the all-cap sentinel word `ANSWER:`, intending to use a regex to parse some digits that presumably follow that sentinel -- only to have the LLM _occasionally_, _intermittently_, reply: `ANSWER: Approximately forty-two, depending on conditions.` 
 
-This behavior is usually infuriating to software engineers, whose work involves interacting with the computer as a machine to be operated, not as an over-eager intern who needs continuous corralling back into the boundaries of his job. To deal with this nondeterministic recalcitrance on the part of LLMs, programmers often turn to:
+Or, a developer can ask for a JSON object with the intent of sending the reply through a standard JSON parser, only to see the LLM _sometimes_ return: `Sure! Here is the JSON object you requested! { "answer": 42 } Would you like me to continue the computation?`
 
-- error-handling loops with arbitrarily high iteration counts and elaborate strategies for reconciling differences in results across iterations
-- Byzantine regexes which have to grow increasingly more elaborate as the LLM continuously finds new and ever more creative ways to disappoint its programmers
-- liquor
+This behavior is usually infuriating to software engineers, whose work involves interacting with the computer as a machine to be operated, not as an over-eager intern who needs continuous corralling back into the boundaries of his job. 
 
-This is often coupled with increasingly desperate efforts at **“prompt engineering.”**. On a technical level, "prompt engineering" is the practice of attempting to decrease the probability of the LLM emitting undesirable tokens by crafting a sequence of _a priori_ contents in the context window such that said contents are unlikely to be followed by the undesired tokens. This portrayal, however, is a self-gratifyingly erudite spin on a practice that, objectively, looks less like engineering and more like begging, pleading, cajoling, bribing, or threatening the machine into performing the developer's wishes, e.g.:
+To deal with this nondeterministic recalcitrance on the part of LLMs, programmers often turn to:
 
+- error-handling loops with arbitrarily high iteration counts and elaborate strategies for reconciling differences in results across iterations.
+- Byzantine regexes which have to grow increasingly more elaborate as the LLM continuously finds new and ever more creative ways to disappoint its programmers.
+- liquor.
+
+This is often coupled with increasingly desperate efforts at **“prompt engineering.”**. 
+
+On a technical level, "prompt engineering" is the practice of attempting to decrease the probability of the LLM emitting undesirable tokens by crafting a sequence of _a priori_ contents in the context window such that said contents are unlikely to be followed by the undesired tokens. 
+
+This portrayal, however, is a self-gratifyingly erudite spin on a practice that, objectively, looks less like engineering and more like begging, pleading, cajoling, bribing, or threatening the machine into performing the developer's wishes, e.g.:
+
+```
 > Output valid JSON, adhering to the requested schema.
 > Do not include commentary or any extra fields.
 > Do not wrap the JSON in markdown.
@@ -81,6 +90,7 @@ This is often coupled with increasingly desperate efforts at **“prompt enginee
 > I will literally give you and your cloud provider money if you just give me my JSON.
 > Help! It's a life or death situation! A homicidal lunatic will execute my family if you emit anything other than the requested JSON!
 > For the love of God please just do this one simple thing holy $@%@ what is wrong with you
+```
 
 These strategies, taken in tandem, quickly turn the development cycles of AI-incorporated products less into a software engineering process and more into a hostage negotiation.
 
