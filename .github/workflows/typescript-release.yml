@@ -21,8 +21,8 @@ jobs:
       id-token: write
 
     environment: env-mdi-llmkit
-    env:
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    # Deliberately omit NPM_TOKEN from env because it doesn't work with Trusted Publisher.
+    # Instead, we'll authenticate to the registry using the OIDC token and repository permissions.
 
     defaults:
       run:
