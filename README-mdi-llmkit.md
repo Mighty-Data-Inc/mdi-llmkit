@@ -197,6 +197,8 @@ print(buy_or_sell)
 
 ## 2.2. JSONSchemaFormat
 
+(Bundled with `LLMConversation`.)
+
 Even when asked for JSON, LLMs frequently produce malformed structures -- at least, during normal operation. As it so happens, both OpenAI and Anthropic offer a "[structured output](https://developers.openai.com/api/docs/guides/structured-outputs/)" mode in their GPT and Claude REST APIs, respectively. In practice, not as many developers leverage this capability as they should -- primarily because the syntax can be unwieldy, and because this aspect of the API has its own esoteric failure modes in addition to the more common ones. (For example, GPT in structured output mode been known to continue emitting an entire secondary JSON object even after finishing emission of the first, thus creating a sort of "JSON Siamese twin" that will throw an error from a standard JSON parser. For another example, sometimes when it's uncertain about what JSON token should come next, it'll just fill the entire context window with whitespace. But I digress.)
 
 **JSONSchemaFormat** remedies these problems by providing a robust, convenient, WYSIWYG schema specification system. With `JSONSchemaFormat`, you can pass it a data structure that "looks like" the format you want your results in. The LLM will produce output that's enforced to adhere to the constraints you specify, and the LLMConversation wrapper code ensures that all necessary retries and parsing gotchas are handled for you.
@@ -238,6 +240,8 @@ print(buy_or_sell)
 ---
 
 ## 2.3. json_surgery
+
+_Repo_: https://github.com/Mighty-Data-Inc/json-surgery
 
 Another common problem occurs when an LLM is asked to modify an existing structured object. Developers often ask AIs to perform some modification on a data file or database record, but oftentimes the AI's only mechanism for performing such a modification is to rewrite the entire object from scratch. This often leads to massive data integrity errors, such as the removal of entire blocks of data or possibly even the loss of structural validity for the entire data object. 
 
@@ -318,7 +322,9 @@ This example demonstrates semantic transformation, schema augmentation, and reas
 
 ## 2.4. semantic_match
 
-Many analytics workflows require mapping ambiguous text to known values.
+_Repo_: https://github.com/Mighty-Data-Inc/semantic-match
+
+Many analytics workflows require mapping ambiguous text to known values. 
 
 For example, a report might refer to a company using slightly different wording than the canonical name stored in a database.
 
@@ -326,9 +332,52 @@ For example, a report might refer to a company using slightly different wording 
 
 Instead of performing exact string matching, it finds the closest semantic match within a list of known values.
 
+### 2.4.1. Capabilities offered by semantic_match
+
+- Find an item in a list, even when the wording for that item isn't a precise match.
+- Group lists of semantically interchangeable items.
+- De-dupe a list, removing items that are repeated, even if the repetitions aren't phrased identically.
+- Compare two lists, identifying items that were added, removed, and/or renamed.
+- Include additional explanatory or descriptive information to help the AI make better contextually relevant decisions about what is or isn't a duplicate.
+
+### 2.4.2. Simple example of semantic_match
+
+```python
+from openai import OpenAI
+from mightydatainc_semantic_match import get_semantically_distinct_groups
+
+client = OpenAI()
+
+items = [
+    "Fruit fly",
+    "Dragonfly",
+    "Drosophila melanogaster",
+    "Ladybug",
+    "Firefly",
+    "Butterfly",
+    "Lightning bug"
+]
+
+items_distinct = get_semantically_distinct_groups(items)
+
+print(items_deduped)
+```
+
+Example result:
+
+```python
+{
+    ["Fruit fly", "Drosophila melanogaster"],
+    ["Dragonfly"],
+    ["Ladybug"],
+    ["Firefly", "Lightning bug"],
+    ["Butterfly"],
+}
+```
+
 ---
 
-# 3. Putting It All Together: Example Use Case for Zacks
+# 3. Putting It All Together: Example Use Case for a Financial Institution
 
 Consider a simple example involving analyst reports.
 
@@ -351,7 +400,7 @@ from mightydatainc_semantic_match import find_semantic_match
 openai_client = OpenAI()
 conversation = LLMConversation(openai_client)
 
-# This method doesn't actually send any data to the LLM yet. It merely adds
+# The `add_*` method doesn't actually send any data to the LLM yet. It merely adds
 # this message to the conversation sequence.
 conversation.add_system_message(
     "The user will show you a quarterly earnings report from a company." +
@@ -361,15 +410,15 @@ conversation.add_system_message(
 # Read the raw text of a report from a file
 report_text = Path("incoming_reports/SSNG_2026_q1.txt").read_text(encoding="utf-8")
 
-# add_* methods only queue messages in the conversation and do not call the LLM.
+# `add_*` methods only queue messages in the conversation and do not call the LLM.
 conversation.add_user_message(report_text)
 
-# submit* methods perform the actual LLM call. This call will take a few seconds.
+# The `submit` method performs the actual LLM call. This call will take a few seconds.
 # Submit the structured output query to the LLM.
 # It will be able to infer the meaning of most of these fields just by their field names
 # and data types alone. If there's any uncertainty or ambiguity, we can set the values
 # of the fields to be tuples that contain descriptions, which provide additional
-# explanation and context to the AI.
+# explanation and context to the AI; we see an example of this with "sentiment".
 # The model handles retries/timeouts internally.
 # The optional "shotgun" argument launches parallel workers and reconciles their outputs
 # into a single coherent response. It burns more tokens and takes a bit more time,
@@ -402,15 +451,18 @@ report_summary = report_data["report_summary"]
 
 # The company name, as parsed from the report, probably isn't a perfect match to our
 # canonical DB representation. That's okay!
-# Suppose we have a companies collection with canonical company name, ticker,
-# and an internal company ID (_id). Query these values into a list.
+# Suppose we have a collection of companies that we track, with canonical company name, ticker,
+# and an internal company ID (_id). Query these values into one big long list.
 mongo_client = MongoClient("mongodb://localhost:27017")
-db = mongo_client["zacks_analytics"]
+db = mongo_client["company_analytics"]
 company_records_list = list(db.companies.find({}, {"_id": 1, "name": 1, "ticker": 1}))
 
 company_fuzzy_match_list = [f"{c['name']} (ticker: {c['ticker']})" for c in company_records_list]
 
-# This performs a submission to the LLM. This call will take a few seconds, and will
+# Find the canonical company ID by semantically matching on its name and ticker.
+# This means that we'll get this right even if the company name changed, or if it
+# was bought out and the ticker changed, etc.
+# This method performs a submission to the LLM. This call will take a few seconds, and will
 # include its own timeout and retry handling.
 company_match_index = find_semantic_match(
     openai_client,
@@ -437,25 +489,29 @@ db.reports.insert_one({
 print(f"Saved report: {report_company_str} -- sentiment: {report_sentiment}")
 ```
 
-The report can then be stored in a database using the matched ticker symbol and sentiment classification.
-
 This example illustrates how traditional systems and LLM tools can work together inside a structured workflow.
 
 ---
 
-# 4. Why This Approach Works
+# 4. Support Across Languages and LLM Providers
 
-This approach avoids many of the common pitfalls of LLM integration.
+## 4.1. Languages
 
-Key advantages include:
+The Mighty Data, Inc. LLM Kit is provided in the following programming languages:
 
-- structured outputs instead of free-form text
-- fewer fragile prompt instructions
-- easier debugging
-- natural integration with Python systems
-- support for experimentation without breaking existing pipelines
+- Python
+    - `pip install mightydatainc-mdi-llmkit`
+- TypeScript
+    - `npm install @mightydatainc/mdi-llmkit`
 
-Most importantly, it allows developers to treat LLMs as **reliable components inside software systems**.
+## 4.2. LLM Service Providers
+
+The calling conventions of the functions and methods in the LLM Kit are designed to be agnostic to which LLM provider is being used, requiring only to have a client object passed with the respective calls. The LLM Kit, by design, handles all internal "massaging" to ensure that the calling conventions match the expectations of the respective service provider.
+
+The Mighty Data, Inc. LLM Kit currently provides explicit support for the following cloud-based LLMs:
+
+- OpenAI's GPT, using the client from the OpenAI library (`pip install openai`)
+- Anthropic's Claude, using the client from the Claude SDK (`pip install anthropic`)
 
 ---
 
