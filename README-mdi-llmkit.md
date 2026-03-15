@@ -10,7 +10,7 @@ Humans read through this noise without difficulty. **Humans can infer what the d
 
 Consider a few actual field cases that Mighty Data, Inc. enountered with real-world clients:
 
-- An invoice system for home renovation projects tried to order **2,000 buckets of beige paint**, when what the user meant was enough paint to cover **2,000 square feet of interior wall**.  
+- An invoice system for home renovation projects tried to order **5,000 buckets of beige paint**, when what the user meant was enough paint to cover **5,000 square feet of interior wall**.  
 - A residential property listing claimed that a single-family home had **212 bathrooms** because someone typed **“2 1/2”**.  
 - A mining company needed to avoid violating a lein on **“the 5-acre square at the northwestern corner of the Johnson family farm,”** requiring contextual reasoning to determine the actual geographic location being referenced and find it on a map using objectively discernible latitude and longitude coordinates.
 
