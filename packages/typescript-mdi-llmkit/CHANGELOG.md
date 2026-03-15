@@ -2,41 +2,11 @@
 
 All notable changes to this package will be documented in this file.
 
-## 1.1.3 - 2026-03-01
+## 1.0.2 - 2026-03-15
 
-- No TypeScript runtime/API behavior changes in this cycle.
-- Removed a unit test with an incorrect expectation in `tests/semanticMatch/compareLists.test.ts`.
-
-## 1.1.2 - 2026-03-01
-
-- No TypeScript runtime/API behavior changes in this cycle.
-- Python package received semantic-match porting updates (`semantic_match` source + parity tests) to align cross-language feature coverage.
-
-## 1.1.1 - 2026-02-28
-
-- Renamed public semantic diff subpath from `mdi-llmkit/comparison` to `mdi-llmkit/semanticMatch`.
-- Renamed internal source/test module paths from `comparison` to `semanticMatch`.
-- Marked as a clean breaking change (no compatibility alias for the old subpath).
-
-## 1.1.0 - 2026-02-28
-
-- Added explicit subpath exports for `mdi-llmkit/jsonSurgery` and `mdi-llmkit/semanticMatch` via dedicated index barrels.
-- Standardized `jsonSurgery` export mapping to `dist/src/jsonSurgery/index.{js,d.ts}` for consistent subpath packaging.
-- Removed root-level convenience re-exports so consumers now import APIs via subpaths only (`mdi-llmkit/gptApi`, `mdi-llmkit/jsonSurgery`, `mdi-llmkit/semanticMatch`).
-
-## 1.0.6 - 2026-02-27
-
-- Version bump to align Python/TypeScript package versions and trigger a release pipeline test run.
-
-## 1.0.5 - 2026-02-27
-
-- Added repository metadata in `package.json` to satisfy npm provenance validation.
-- Bumped package version for another release attempt.
-
-## 1.0.4 - 2026-02-27
-
-- Updated TypeScript release workflow to use token-based npm authentication (`NPM_TOKEN`).
-- Bumped package version for a fresh release attempt.
+- Converted the TypeScript package in this repository to a meta-package structure.
+- The package now acts as a convenience installer for the core Mighty Data TypeScript packages rather than exposing its own runtime implementation.
+- Updated package metadata and release handling to match the new meta-package layout.
 
 ## 1.0.3 - 2026-02-27
 

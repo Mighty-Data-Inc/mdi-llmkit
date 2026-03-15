@@ -2,41 +2,11 @@
 
 All notable changes to this package will be documented in this file.
 
-## 1.1.3 - 2026-03-01
+## 1.0.2 - 2026-03-15
 
-- Removed a unit test with an incorrect expectation in `tests/test_compare_lists.py`.
-- No runtime/API behavior changes; this patch corrects test-suite expectations only.
-
-## 1.1.2 - 2026-03-01
-
-- Ported semantic matching item helpers from TypeScript to Python in `mdi_llmkit.semantic_match.semantic_item`.
-- Added `find_semantic_match` in `mdi_llmkit.semantic_match.find` as a Python port of `findSemanticMatch`.
-- Added record-based comparison API in `mdi_llmkit.semantic_match.compare_lists` with `ItemComparisonClassification`, `ItemComparisonResult`, and `compare_item_lists`.
-- Updated subpackage exports for `mdi_llmkit.semantic_match` to include semantic item, find, and compare APIs.
-- Added/ported live API tests for semantic match finder in `tests/test_find.py`.
-- Replaced comparison tests with parity coverage for the new record-based compare contract in `tests/test_compare_lists.py`.
-- Added/ported semantic item helper tests in `tests/test_semantic_item.py`.
-- Updated docs/import references to use `mdi_llmkit.semantic_match` while preserving older changelog entries for historical accuracy.
-
-## 1.1.1 - 2026-02-28
-
-- Renamed semantic diff subpackage import path from `mdi_llmkit.comparison` to `mdi_llmkit.semanticMatch`.
-- Renamed internal source module folder from `comparison` to `semanticMatch`.
-- Marked as a clean breaking change (no compatibility alias for the old import path).
-
-## 1.1.0 - 2026-02-28
-
-- Removed root-level convenience re-exports from `mdi_llmkit` so package usage is subpackage-only.
-- Preserved subpackage import paths for public APIs (`mdi_llmkit.gpt_api`, `mdi_llmkit.json_surgery`, `mdi_llmkit.semanticMatch`).
-- Added import-surface regression coverage to ensure root exports remain empty while subpackage imports continue to work.
-
-## 1.0.6 - 2026-02-27
-
-- Version bump to align Python/TypeScript package versions and trigger a release pipeline test run.
-
-## 1.0.4 - 2026-02-27
-
-- Fixed an intermittently failing unit test by tightening prompt behavior for deterministic outcomes.
+- Converted the Python package in this repository to a meta-package structure.
+- The package now acts as a convenience installer for the core Mighty Data Python packages rather than providing its own runtime API surface.
+- Updated release metadata and packaging flow to match the new meta-package layout.
 
 ## 1.0.3 - 2026-02-27
 

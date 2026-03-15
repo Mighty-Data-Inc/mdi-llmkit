@@ -38,7 +38,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: "23"
-          registry-url: "https://registry.npmjs.org"
+          # Deliberately omit "registry-url" because it doesn't work with Trusted Publisher.
           cache: "npm"
           cache-dependency-path: packages/typescript-mdi-llmkit/package-lock.json
 
