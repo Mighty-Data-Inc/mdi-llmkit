@@ -1,9 +1,13 @@
 {
   "name": "@mightydatainc/mdi-llmkit",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Meta-package that installs Mighty Data LLM utility packages",
   "author": "Mikhail Voloshin",
   "license": "MIT",
+  "homepage": "https://github.com/Mighty-Data-Inc/mdi-llmkit#readme",
+  "bugs": {
+    "url": "https://github.com/Mighty-Data-Inc/mdi-llmkit/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/Mighty-Data-Inc/mdi-llmkit"

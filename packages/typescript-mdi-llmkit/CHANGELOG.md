@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented in this file.
 
+## 1.0.7 - 2026-03-15
+
+- Added a high-visibility link in the package README to the full repository README on GitHub.
+- Added npm metadata links (`homepage` and `bugs`) for improved registry-side discoverability.
+
 ## 1.0.6 - 2026-03-15
 
 - Bumped to a shared Python/TypeScript version line.

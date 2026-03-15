@@ -2,6 +2,12 @@
 
 Python meta-package for the Mighty Data LLM toolkit.
 
+## Full Project Documentation
+
+For the complete project overview and rationale, see the repository README:
+
+- https://github.com/Mighty-Data-Inc/mdi-llmkit#readme
+
 This package is a convenience installer. It does not provide its own runtime API surface. Instead, it installs the core component packages used in Python projects.
 
 ## Installation

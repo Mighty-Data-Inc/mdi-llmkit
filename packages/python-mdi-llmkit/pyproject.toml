@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mightydatainc-mdi-llmkit"
-version = "1.0.6"
+version = "1.0.7"
 description = "Meta-package that installs the core Mighty Data LLM utility packages"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -15,6 +15,11 @@ dependencies = [
 ]
 authors = [{ name = "Mikhail Voloshin" }]
 license = { file = "LICENSE" }
+
+[project.urls]
+Homepage = "https://github.com/Mighty-Data-Inc/mdi-llmkit"
+Documentation = "https://github.com/Mighty-Data-Inc/mdi-llmkit#readme"
+Repository = "https://github.com/Mighty-Data-Inc/mdi-llmkit"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mdi_llmkit"]
